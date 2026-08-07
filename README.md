@@ -4,6 +4,14 @@ An offline-first Android workbench for the official DEF CON 34 human badge. It b
 
 > **Status:** beta. The app builds and can be exercised without a badge, but Android USB port selection and full transfers still require validation on physical DC34 hardware and more than one phone model.
 
+## Install the beta
+
+[Download DC34 Badge Manager 0.1.0 beta 1 APK](https://github.com/lnxgod/dc34-badge-manager-android/releases/download/v0.1.0-beta.1/dc34-badge-manager-0.1.0-beta.1.apk), then open it on an Android 8.0 or newer phone. Android may ask you to allow **Install unknown apps** for your browser or file manager.
+
+This first APK is test/debug-signed for hardware testing. A later production-signed build may require uninstalling this beta first. SHA-256: `bb1ca4039e6ccab521d5f3233069b2b6692f5d3de54cb3825fd72104f9f805c3`.
+
+See [all releases](https://github.com/lnxgod/dc34-badge-manager-android/releases) for notes and future builds.
+
 ## What it manages
 
 - **Screen art:** crop/scale any supported image to the 128 × 128 one-bit display, tune threshold, use Floyd–Steinberg dithering, invert, upload, or clear.
