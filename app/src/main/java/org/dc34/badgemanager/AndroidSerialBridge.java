@@ -83,7 +83,8 @@ public final class AndroidSerialBridge implements UsbSerialController.Callback {
 
     @JavascriptInterface
     public String appInfo() {
-        return "{\"platform\":\"android\",\"transport\":\"usb-host\",\"version\":\"0.1.0\"}";
+        return "{\"platform\":\"android\",\"transport\":\"usb-host\",\"version\":\"" +
+                BuildConfig.VERSION_NAME + "\"}";
     }
 
     @Override public void resolve(String requestId) {

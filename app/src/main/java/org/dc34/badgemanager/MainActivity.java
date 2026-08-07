@@ -89,7 +89,7 @@ public final class MainActivity extends Activity {
         settings.setMediaPlaybackRequiresUserGesture(true);
         settings.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
         settings.setSupportMultipleWindows(false);
-        settings.setUserAgentString(settings.getUserAgentString() + " DC34BadgeManager/0.1.0");
+        settings.setUserAgentString(settings.getUserAgentString() + " DC34BadgeManager/" + BuildConfig.VERSION_NAME);
 
         CookieManager.getInstance().setAcceptCookie(false);
         CookieManager.getInstance().setAcceptThirdPartyCookies(view, false);

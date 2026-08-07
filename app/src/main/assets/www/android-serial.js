@@ -5,6 +5,8 @@
 
   const pending = new Map();
   const serialEvents = new EventTarget();
+  const ACTIVE_READ_POLL_MS = 20;
+  const IDLE_READ_POLL_MAX_MS = 250;
   let sequence = 0;
   let sessionSequence = 0;
   let activePort = null;
@@ -50,13 +52,19 @@
     }
 
     async read() {
+      let pollMs = ACTIVE_READ_POLL_MS;
       while (!this.cancelled && this.port.opened) {
         const encoded = window.DC34Android.readBase64(this.port.sessionId);
         if (encoded.startsWith('error:')) {
           throw new DOMException(encoded.replace(/^error:/, '') || 'USB read failed.', 'NetworkError');
         }
         if (encoded) return { value: fromBase64(encoded), done: false };
-        await delay(20);
+        // Keep command responses responsive, but avoid 50 native bridge calls
+        // per second while a connected badge and app are both idle.
+        pollMs = document.body?.dataset.serialBusy === 'true'
+          ? ACTIVE_READ_POLL_MS
+          : Math.min(IDLE_READ_POLL_MAX_MS, pollMs * 2);
+        await delay(pollMs);
       }
       return { value: undefined, done: true };
     }
