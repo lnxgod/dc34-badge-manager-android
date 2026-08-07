@@ -56,7 +56,7 @@ Do not use a bucket-wide delete or sync. The deploy identity should be limited t
 
 Use temporary AWS credentials or GitHub Actions OIDC. Never commit or paste permanent AWS access keys.
 
-For GitHub OIDC, trust only the repository’s `main` branch (`repo:lnxgod/dc34-badge-manager-android:ref:refs/heads/main`) with audience `sts.amazonaws.com`. The workflow rejects AWS accounts other than `345594592214` and applies a second, inline session policy limited to this S3 prefix and the configured CloudFront distribution. The underlying role should enforce the same limits.
+For GitHub OIDC, trust only the repository’s immutable-ID `main` branch subject (`repo:lnxgod@76919292/dc34-badge-manager-android@1326125284:ref:refs/heads/main`) with audience `sts.amazonaws.com`. GitHub uses this immutable-ID form for repositories created after July 15, 2026. The workflow rejects AWS accounts other than `345594592214` and applies a second, inline session policy limited to this S3 prefix and the configured CloudFront distribution. The underlying role should enforce the same limits.
 
 ## GitHub Pages mirror
 
