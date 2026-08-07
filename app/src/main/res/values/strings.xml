@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DC34 Badge Manager</string>
+    <string name="usb_permission_title">Connect DC34 badge</string>
+    <string name="usb_no_devices">No compatible USB serial device is attached. Connect the badge with a USB-C OTG data cable and try again.</string>
+</resources>

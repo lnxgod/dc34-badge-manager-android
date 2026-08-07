@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Official DC34 Baochip Baosec-lite USB ID: 1d50:6198. -->
+    <usb-device vendor-id="7504" product-id="24984" />
+</resources>

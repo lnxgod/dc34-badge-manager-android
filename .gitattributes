@@ -1,0 +1,3 @@
+gradlew.bat text eol=crlf
+*.bin binary
+app/src/main/assets/www/vendor/qrcodegen.js whitespace=-trailing-space
