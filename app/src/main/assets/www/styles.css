@@ -172,9 +172,26 @@ legend { font-size: 12px; font-weight: 700; padding: 0 0 10px; }
 .direct-led-head output { color: #a8b0a5; text-align: right; font: 10px/1.4 var(--mono); }
 .direct-led-head output.active { color: var(--acid); }
 .direct-led-head output.error { color: var(--danger); }
-.direct-presets { display: flex; flex-wrap: wrap; gap: 7px; margin: 13px 3px 4px; }
-.direct-presets .button { margin: 0; padding: 7px 10px; }
-.power-unlock { margin-left: 3px; }
+.direct-pattern-panel { margin: 13px 3px 14px; padding: 13px; border: 1px solid #3f4d3f; background: #101610; }
+.direct-pattern-heading { display: flex; align-items: start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.direct-pattern-heading > div { display: grid; gap: 4px; }
+.direct-pattern-heading span { color: var(--acid); font: 700 10px var(--mono); letter-spacing: .08em; }
+.direct-pattern-heading small { color: var(--muted); font: 10px var(--mono); }
+.direct-pattern-heading a { color: var(--muted); font: 10px var(--mono); }
+.direct-pattern-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 9px; }
+.direct-pattern-field, .direct-pattern-slider { display: grid; grid-template-columns: 1fr auto; gap: 5px 8px; color: var(--muted); font-size: 10px; font-weight: 700; }
+.direct-pattern-field select, .direct-pattern-field input[type="text"] { grid-column: 1 / -1; width: 100%; min-width: 0; padding: 8px 6px; color: var(--ink); border: 1px solid var(--line); background: #0d120e; font: 10px var(--mono); }
+.direct-pattern-field option:disabled { color: #687068; }
+.direct-morse-field { grid-column: span 2; }
+#direct-morse-output { grid-column: 1 / -1; min-height: 1.4em; color: var(--acid); overflow-wrap: anywhere; font: 9px/1.4 var(--mono); }
+.direct-pattern-slider output { color: var(--acid); font: 9px var(--mono); }
+.direct-pattern-slider input { grid-column: 1 / -1; width: 100%; margin: 0; accent-color: var(--acid); }
+.direct-pattern-field select:disabled, .direct-pattern-slider input:disabled { opacity: .38; cursor: not-allowed; }
+#direct-pattern-note { min-height: 2.4em; margin: 12px 0 0; color: #b9c8b5; }
+.direct-pattern-limit { margin: 7px 0 0; }
+.direct-safety-toggles { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-left: 3px; }
+.power-unlock, .motion-unlock { margin: 0; }
+.motion-unlock:has(input:disabled) { opacity: .42; }
 #direct-power-note { margin: 8px 3px 14px; }
 .direct-led-controls { display: grid; gap: 7px; max-height: 568px; overflow: auto; padding-right: 4px; scrollbar-color: var(--line) transparent; }
 .direct-led-control { display: grid; grid-template-columns: 65px 46px minmax(92px,1fr) 82px 72px minmax(66px,.65fr) 72px; align-items: center; gap: 6px; padding: 8px; border: 1px solid #303a30; background: #141a15; }
@@ -242,10 +259,13 @@ footer { display: flex; justify-content: space-between; gap: 16px; padding-top: 
 .qr-dialog .text-button { color: #405038; }
 .qr-dialog canvas { display: block; width: min(100%,760px); height: auto; margin: 0 auto; image-rendering: pixelated; }
 
+@media (max-width: 1360px) {
+  .direct-led-layout { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 900px) {
   .tool-grid { grid-template-columns: 1fr 1fr; }
   .ideas-card { grid-column: 1 / -1; }
-  .direct-led-layout { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 760px) {
@@ -256,6 +276,7 @@ footer { display: flex; justify-content: space-between; gap: 16px; padding-top: 
   .section-heading { display: block; }
   .section-heading p:last-child { margin-top: 12px; }
   .image-layout, .bio-layout, .qr-layout, .gene-layout, .direct-led-layout { grid-template-columns: 1fr; }
+  .direct-pattern-grid { grid-template-columns: 1fr 1fr; }
   .display-wrap { min-height: 260px; }
   .tool-grid { grid-template-columns: 1fr; }
   .ideas-card { grid-column: auto; }
@@ -275,6 +296,8 @@ footer { display: flex; justify-content: space-between; gap: 16px; padding-top: 
   .sao-grid, .inline-fields, .inline-fields.triple { grid-template-columns: 1fr; }
   .gene-sliders { grid-template-columns: 1fr; }
   .direct-led-control { grid-template-columns: 62px 48px minmax(110px,1fr) 82px; }
+  .direct-pattern-grid { grid-template-columns: 1fr; }
+  .direct-morse-field { grid-column: auto; }
   .direct-timing-field, .direct-duty-field, .direct-delay-field { grid-row: 2; }
   .direct-timing-field { grid-column: 2; }
   .direct-duty-field { grid-column: 3; }

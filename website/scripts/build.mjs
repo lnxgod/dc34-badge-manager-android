@@ -1,6 +1,7 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveSiteBasePath, sitePath } from './site-base.mjs';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const websiteDirectory = resolve(scriptDirectory, '..');
@@ -9,6 +10,8 @@ const sourceDirectory = join(websiteDirectory, 'src');
 const distDirectory = join(websiteDirectory, 'dist');
 const badgeSourceDirectory = join(repositoryDirectory, 'app', 'src', 'main', 'assets', 'www');
 const workbenchDirectory = join(distDirectory, 'workbench');
+const siteBasePath = resolveSiteBasePath();
+const siteBasePathToken = '__DC34_SITE_BASE_PATH__';
 
 if (distDirectory !== join(websiteDirectory, 'dist')) {
   throw new Error('Refusing to clean an unexpected build directory.');
@@ -26,9 +29,19 @@ function replaceOnce(source, search, replacement, label) {
 await rm(distDirectory, { recursive: true, force: true });
 await mkdir(workbenchDirectory, { recursive: true });
 
-for (const filename of ['index.html', 'styles.css', 'site.js', 'favicon.svg']) {
+for (const filename of ['styles.css', 'site.js', 'favicon.svg']) {
   await cp(join(sourceDirectory, filename), join(distDirectory, filename));
 }
+
+const landingTemplate = await readFile(join(sourceDirectory, 'index.html'), 'utf8');
+if (!landingTemplate.includes(siteBasePathToken)) {
+  throw new Error('Could not configure the landing page; the site base path token is missing.');
+}
+const landingIndex = landingTemplate.replaceAll(siteBasePathToken, siteBasePath);
+if (landingIndex.includes(siteBasePathToken)) {
+  throw new Error('Could not configure the landing page; an unresolved site base path token remains.');
+}
+await writeFile(join(distDirectory, 'index.html'), landingIndex, 'utf8');
 
 await cp(badgeSourceDirectory, workbenchDirectory, { recursive: true });
 await cp(join(sourceDirectory, 'workbench-theme.css'), join(workbenchDirectory, 'web-theme.css'));
@@ -57,8 +70,8 @@ workbenchIndex = replaceOnce(
 );
 workbenchIndex = replaceOnce(
   workbenchIndex,
-  '<script src="app.js?v=28"></script>',
-  '<script src="app.js?v=28"></script>\n    <script src="web.js?v=1"></script>',
+  '<script src="app.js?v=29"></script>',
+  '<script src="app.js?v=29"></script>\n    <script src="web.js?v=1"></script>',
   'the web-only workbench behavior',
 );
 workbenchIndex = replaceOnce(
@@ -148,10 +161,10 @@ workbenchIndex = replaceOnce(
 workbenchIndex = replaceOnce(
   workbenchIndex,
   '<footer><span>Android · offline-first · no Internet permission.</span><a href="https://defcon.org/34b/" target="_blank" rel="noreferrer">Official badge help ↗</a></footer>',
-  '<footer><span>Local by design · Desktop Chrome or Edge for USB</span><span>Charles “OhYou_” Grow · Chief Codex Pilot</span><a href="/dc34badge">Back to badge page</a></footer>',
+  `<footer><span>Local by design · Desktop Chrome or Edge for USB</span><span>Charles “OhYou_” Grow · Chief Codex Pilot</span><a href="${sitePath(siteBasePath)}">Back to badge page</a></footer>`,
   'the workbench footer',
 );
 
 await writeFile(workbenchIndexPath, workbenchIndex, 'utf8');
 
-console.log(`Built DC34 badge website at ${distDirectory}`);
+console.log(`Built DC34 badge website for ${sitePath(siteBasePath)} at ${distDirectory}`);

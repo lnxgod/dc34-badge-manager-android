@@ -3,10 +3,13 @@ import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveSiteBasePath, sitePath } from './site-base.mjs';
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const distDirectory = resolve(scriptDirectory, '..', 'dist');
 const port = Number(process.env.PORT || 4173);
+const siteBasePath = resolveSiteBasePath();
+const sitePrefix = `${siteBasePath}/`;
 const contentTypes = new Map([
   ['.bin', 'application/octet-stream'],
   ['.css', 'text/css; charset=utf-8'],
@@ -29,10 +32,10 @@ createServer(async (request, response) => {
   const pathname = decodeURIComponent(new URL(request.url, `http://${request.headers.host}`).pathname);
   let relativePath;
 
-  if (pathname === '/' || pathname === '/dc34badge') {
+  if (pathname === '/' || pathname === siteBasePath || pathname === sitePrefix) {
     relativePath = 'index.html';
-  } else if (pathname.startsWith('/dc34badge/')) {
-    relativePath = pathname.slice('/dc34badge/'.length);
+  } else if (pathname.startsWith(sitePrefix)) {
+    relativePath = pathname.slice(sitePrefix.length);
   } else {
     response.writeHead(404).end('Not found');
     return;
@@ -51,5 +54,5 @@ createServer(async (request, response) => {
     response.writeHead(404).end('Not found');
   }
 }).listen(port, '127.0.0.1', () => {
-  console.log(`DC34 badge website: http://127.0.0.1:${port}/dc34badge`);
+  console.log(`DC34 badge website: http://127.0.0.1:${port}${sitePath(siteBasePath)}`);
 });

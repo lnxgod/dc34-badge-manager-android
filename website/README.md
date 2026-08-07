@@ -30,6 +30,15 @@ npm run serve
 
 Then open `http://127.0.0.1:4173/dc34badge`. The local server mirrors the production subpath and exact-file routing. USB access requires a secure origin in production; localhost is accepted by Chromium for development.
 
+The build defaults to the GameChangers AI path. Set `SITE_BASE_PATH` to build and serve the same static files under another absolute path:
+
+```sh
+SITE_BASE_PATH=/dc34-badge-manager-android npm test
+SITE_BASE_PATH=/dc34-badge-manager-android npm run serve
+```
+
+`SITE_BASE_PATH` must be empty (site root) or an absolute path without a trailing slash, query, fragment, backslash, or dot segment.
+
 ## Browser support
 
 - Desktop Chrome or Edge: full Web Serial workbench over HTTPS.
@@ -48,3 +57,9 @@ Do not use a bucket-wide delete or sync. The deploy identity should be limited t
 Use temporary AWS credentials or GitHub Actions OIDC. Never commit or paste permanent AWS access keys.
 
 For GitHub OIDC, trust only the repository’s `main` branch (`repo:lnxgod/dc34-badge-manager-android:ref:refs/heads/main`) with audience `sts.amazonaws.com`. The workflow rejects AWS accounts other than `345594592214` and applies a second, inline session policy limited to this S3 prefix and the configured CloudFront distribution. The underlying role should enforce the same limits.
+
+## GitHub Pages mirror
+
+The website workflow also tests a project-Pages build at `/dc34-badge-manager-android`. Pull requests and feature branches build and test that variant but cannot deploy it. Only `main` may publish the `github-pages` artifact to the protected `github-pages` environment.
+
+The `main`-only deploy job enables Pages with GitHub Actions as its source. Keep the Pages environment restricted to `main`. The artifact is uploaded with `index.html` at its root, producing `https://lnxgod.github.io/dc34-badge-manager-android/`; do not nest it inside another repository-name folder or add a `CNAME`. The canonical URL remains the GameChangers AI deployment.

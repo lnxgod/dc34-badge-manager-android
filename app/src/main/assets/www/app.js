@@ -41,6 +41,14 @@ const DIRECT_LED_DEFAULT_COLORS = Object.freeze([
   '#ff5a24', '#ff5a24', '#ff0000', '#ff8000', '#ffff00',
   '#00ff00', '#00ffff', '#0080ff', '#8000ff', '#ff00ff',
 ]);
+const {
+  PATTERNS: DIRECT_LED_PATTERNS,
+  PALETTES: DIRECT_LED_PALETTES,
+  compilePattern: compileDirectLedPattern,
+  packTiming: packDirectLedTiming,
+  encodeMorse: encodeDirectMorse,
+} = window.DC34DirectLedPatterns;
+const WLED_EFFECTS = window.WledCatalog.effects;
 // USB CDC input is forwarded through the badge keyboard service. Live testing
 // showed that 20–40 ms/byte can still corrupt input while the badge is busy;
 // 80 ms/byte plus a one-second settle produced exact echoes with zero drops.
@@ -111,6 +119,16 @@ const state = {
   directLedSynced: false,
   directStartupState: 'unknown',
   directStartupFingerprint: null,
+  directPatternSettings: {
+    id: 'custom',
+    paletteId: 'dc34',
+    target: 'all',
+    direction: 'forward',
+    speed: 55,
+    width: 25,
+    level: 60,
+    morseText: 'SOS',
+  },
 };
 
 const canvas = $('#image-canvas');
@@ -1369,11 +1387,8 @@ function directConfigWord(led) {
   const brightnessLimit = $('#direct-high-power')?.checked ? 255 : 64;
   const brightness = clamp(Math.round(led.brightness), 0, brightnessLimit);
   if (led.effect === 'steady') return brightness >>> 0;
-  const minimumPeriod = led.effect === 'rgb' ? DIRECT_LED_RGB_MIN_PERIOD_MS : 40;
-  const periodMs = quantizeDirectMs(led.periodMs, 1_000, minimumPeriod);
-  const period = clamp(Math.round(periodMs / DIRECT_LED_TICK_MS), 1, 0xFFF);
-  const onTime = led.effect === 'rgb' ? period : clamp(Math.round(period * led.duty / 100), 1, period);
-  return ((onTime << 20) | (period << 8) | brightness) >>> 0;
+  const timing = packDirectLedTiming(led);
+  return ((timing.onTimeTicks << 20) | (timing.periodTicks << 8) | brightness) >>> 0;
 }
 
 function directEffectWord(led) {
@@ -1472,11 +1487,36 @@ function makeDirectStartupBinary(template, enabled, words = directSceneWords()) 
   return bytes;
 }
 
+function directFlashRateHz(led) {
+  if (led.effect !== 'flash') return 0;
+  const timing = packDirectLedTiming(led);
+  return 1_000 / timing.periodMs;
+}
+
+function directHasRapidFlash() {
+  return state.directLeds.some((led) => {
+    const rate = directFlashRateHz(led);
+    return rate >= 3 && rate <= 30;
+  });
+}
+
+function directRapidPreviewAllowed() {
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  return !reducedMotion && Boolean($('#direct-rapid-preview')?.checked);
+}
+
+function directDutyLabel(led) {
+  const requested = Math.round(led.duty);
+  if (led.effect !== 'flash') return `${requested}%`;
+  const effective = Math.round(packDirectLedTiming(led).effectiveDuty * 100);
+  return requested === effective ? `${effective}%` : `${requested}% → ${effective}%`;
+}
+
 function updateDirectPowerEstimate() {
   let currentMa = 0;
   state.directLeds.forEach((led) => {
     const [red, green, blue] = directColorChannels(led.color);
-    const duty = led.effect === 'flash' ? led.duty / 100 : 1;
+    const duty = led.effect === 'flash' ? packDirectLedTiming(led).effectiveDuty : 1;
     const channelLoad = led.effect === 'rgb' ? 1 : (red + green + blue) / 255;
     currentMa += 20 * channelLoad * (led.brightness / 255) * duty;
   });
@@ -1495,6 +1535,208 @@ function markDirectLedDirty(index) {
 }
 
 let directLedAnimationStart = performance.now();
+
+function directPatternTargetIndices(target = state.directPatternSettings.target) {
+  if (target === 'eyes') return [0, 1];
+  if (target === 'ring') return Array.from({ length: 8 }, (_, index) => index + 2);
+  return Array.from({ length: DIRECT_LED_COUNT }, (_, index) => index);
+}
+
+function addDirectPatternOption(group, value, label, disabled = false) {
+  const option = document.createElement('option');
+  option.value = value;
+  option.textContent = label;
+  option.disabled = disabled;
+  group.append(option);
+}
+
+function populateDirectPatternControls() {
+  const patternSelect = $('#direct-pattern');
+  patternSelect.textContent = '';
+  addDirectPatternOption(patternSelect, 'custom', 'Custom / per-pixel');
+
+  const groups = [
+    ['Badge ready · exact', DIRECT_LED_PATTERNS.filter((pattern) => pattern.support === 'exact')],
+    ['Badge ready · 10-pixel approximations', DIRECT_LED_PATTERNS.filter((pattern) => pattern.support === 'approx')],
+    ['Badge extras', DIRECT_LED_PATTERNS.filter((pattern) => pattern.support === 'badge')],
+  ];
+  groups.forEach(([label, patterns]) => {
+    const group = document.createElement('optgroup');
+    group.label = label;
+    patterns.forEach((pattern) => addDirectPatternOption(group, pattern.id, pattern.label));
+    patternSelect.append(group);
+  });
+
+  const implementedWledIds = new Set(
+    DIRECT_LED_PATTERNS.map((pattern) => pattern.wledId).filter(Number.isInteger),
+  );
+  [
+    ['WLED 1D · future controller', 'one-d'],
+    ['WLED audio · requires audio input', 'audio'],
+    ['WLED matrix · requires 2D hardware', 'matrix'],
+  ].forEach(([label, catalogGroup]) => {
+    const group = document.createElement('optgroup');
+    group.label = label;
+    WLED_EFFECTS
+      .filter((effect) => effect.group === catalogGroup && !implementedWledIds.has(effect.id))
+      .forEach((effect) => addDirectPatternOption(group, `wled-${effect.id}`, `${effect.id} · ${effect.name}`, true));
+    patternSelect.append(group);
+  });
+  patternSelect.value = state.directPatternSettings.id;
+
+  const paletteSelect = $('#direct-palette');
+  paletteSelect.textContent = '';
+  DIRECT_LED_PALETTES.forEach((palette) => addDirectPatternOption(paletteSelect, palette.id, palette.label));
+  paletteSelect.value = state.directPatternSettings.paletteId;
+}
+
+function updateDirectPatternControlState() {
+  const settings = state.directPatternSettings;
+  const pattern = DIRECT_LED_PATTERNS.find((candidate) => candidate.id === settings.id) || DIRECT_LED_PATTERNS[0];
+  const unlocked = $('#direct-high-power').checked;
+  const brightnessMax = unlocked ? 255 : 64;
+  const actualLevel = Math.round(brightnessMax * settings.level / 100 / 255 * 100);
+  $('#direct-speed').value = String(settings.speed);
+  $('#direct-width').value = String(settings.width);
+  $('#direct-level').value = String(settings.level);
+  $('#direct-speed-output').value = String(settings.speed);
+  $('#direct-width-output').value = `${settings.width}%`;
+  $('#direct-level-output').value = `${actualLevel}% full`;
+
+  const custom = pattern.id === 'custom';
+  const animated = new Set(['blink', 'strobe', 'colorloop', 'rainbow', 'sweep', 'twinkle', 'sparkle', 'chase', 'running', 'dual-sweep', 'police', 'traffic', 'morse', 'nyan', 'hack-planet', 'holiday', 'halloween']);
+  const pulseWidth = new Set(['blink', 'strobe', 'sweep', 'twinkle', 'sparkle', 'chase', 'running', 'dual-sweep']);
+  const direction = new Set(['rainbow', 'sweep', 'chase', 'running', 'dual-sweep', 'morse', 'nyan', 'hack-planet']);
+  const palette = !new Set(['off', 'colorloop', 'rainbow', 'police', 'traffic', 'nyan', 'hack-planet', 'holiday', 'halloween', 'identify']).has(pattern.id);
+  const widthLabels = {
+    blink: 'On time',
+    strobe: 'Flash width',
+    twinkle: 'Density',
+    sparkle: 'Density',
+    sweep: 'Beam width',
+    chase: 'Tail width',
+    running: 'Wave width',
+    'dual-sweep': 'Beam width',
+  };
+  $('#direct-width-label').textContent = widthLabels[pattern.id] || 'Pulse width';
+  $('#direct-width').max = pattern.id === 'strobe' ? '25' : '99';
+  if (pattern.id === 'strobe' && settings.width > 25) {
+    settings.width = 25;
+    $('#direct-width').value = '25';
+    $('#direct-width-output').value = '25%';
+  }
+
+  $('#direct-palette').disabled = custom || !palette;
+  $('#direct-target').disabled = custom;
+  $('#direct-direction').disabled = custom || !direction.has(pattern.id);
+  $('#direct-speed').disabled = custom || !animated.has(pattern.id);
+  $('#direct-width').disabled = custom || !pulseWidth.has(pattern.id);
+  $('#direct-level').disabled = custom || pattern.id === 'off';
+
+  const morse = pattern.id === 'morse';
+  const morseField = $('#direct-morse-field');
+  morseField.hidden = !morse;
+  $('#direct-morse-text').disabled = !morse;
+  if ($('#direct-morse-text').value !== settings.morseText) $('#direct-morse-text').value = settings.morseText;
+  if (morse) {
+    const encoded = encodeDirectMorse(settings.morseText, directPatternTargetIndices().length);
+    const readableCode = encoded.code.replaceAll('.', '·').replaceAll('-', '—');
+    $('#direct-morse-output').value = `${encoded.normalized}: ${readableCode}${encoded.truncated ? ' · first marks only' : ''}`;
+  }
+
+  const rapidPreview = $('#direct-rapid-preview');
+  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const rapid = directHasRapidFlash();
+  if (!rapid || reducedMotion) rapidPreview.checked = false;
+  rapidPreview.disabled = !rapid || reducedMotion;
+
+  const baseNote = custom
+    ? pattern.description
+    : `${pattern.description} ${pattern.support === 'approx' ? 'This is a 10-pixel badge approximation.' : 'This runs entirely on the badge after Apply.'}`;
+  $('#direct-pattern-note').textContent = rapid && !directRapidPreviewAllowed()
+    ? `${baseNote} Rapid-flash preview is paused; applying it still requires a separate warning.`
+    : baseNote;
+}
+
+function applySelectedDirectPattern({ announce = false, renderControls = true } = {}) {
+  const settings = state.directPatternSettings;
+  if (settings.id === 'custom') {
+    updateDirectPatternControlState();
+    return;
+  }
+  const targetIndices = directPatternTargetIndices();
+  const scene = compileDirectLedPattern({
+    id: settings.id,
+    paletteId: settings.paletteId,
+    direction: settings.direction,
+    speed: settings.speed,
+    width: settings.width,
+    level: settings.level,
+    morseText: settings.morseText,
+    count: targetIndices.length,
+    brightnessMax: $('#direct-high-power').checked ? 255 : 64,
+  });
+  targetIndices.forEach((ledIndex, sceneIndex) => {
+    state.directLeds[ledIndex] = scene[sceneIndex];
+    state.directLedDirty.add(ledIndex);
+  });
+  directLedAnimationStart = performance.now();
+  if (renderControls) renderDirectLedControls();
+  else updateDirectPowerEstimate();
+  $('#direct-led-preview-state').textContent = directHasRapidFlash() && !directRapidPreviewAllowed()
+    ? 'RAPID PREVIEW PAUSED · APPLY TO SEND'
+    : 'PATTERN READY · APPLY TO SEND';
+  updateDirectPatternControlState();
+  if (announce) {
+    const pattern = DIRECT_LED_PATTERNS.find((candidate) => candidate.id === settings.id);
+    log(`Prepared ${pattern.label} for ${settings.target} locally. Choose Apply to send it to the badge.`, 'ok');
+  }
+}
+
+function setDirectPatternCustom() {
+  if (state.directPatternSettings.id === 'custom') return;
+  state.directPatternSettings.id = 'custom';
+  $('#direct-pattern').value = 'custom';
+  updateDirectPatternControlState();
+}
+
+function initializeDirectPatternControls() {
+  populateDirectPatternControls();
+  updateDirectPatternControlState();
+
+  $('#direct-pattern').addEventListener('change', (event) => {
+    state.directPatternSettings.id = event.target.value;
+    applySelectedDirectPattern({ announce: event.target.value !== 'custom' });
+  });
+  [
+    ['#direct-palette', 'paletteId'],
+    ['#direct-target', 'target'],
+    ['#direct-direction', 'direction'],
+  ].forEach(([selector, key]) => {
+    $(selector).addEventListener('change', (event) => {
+      state.directPatternSettings[key] = event.target.value;
+      applySelectedDirectPattern({ announce: true });
+    });
+  });
+  [
+    ['#direct-speed', 'speed'],
+    ['#direct-width', 'width'],
+    ['#direct-level', 'level'],
+  ].forEach(([selector, key]) => {
+    const control = $(selector);
+    control.addEventListener('input', (event) => {
+      state.directPatternSettings[key] = Number(event.target.value);
+      applySelectedDirectPattern({ renderControls: false });
+    });
+    control.addEventListener('change', () => applySelectedDirectPattern());
+  });
+
+  $('#direct-morse-text').addEventListener('input', (event) => {
+    state.directPatternSettings.morseText = event.target.value;
+    applySelectedDirectPattern();
+  });
+  $('#direct-morse-text').addEventListener('change', () => applySelectedDirectPattern());
+}
 
 function renderDirectLedControls() {
   const unlocked = $('#direct-high-power').checked;
@@ -1518,13 +1760,13 @@ function renderDirectLedControls() {
       <label class="direct-brightness-field">Brightness <output>${Math.round(led.brightness / 255 * 100)}%</output><input type="range" min="0" max="${brightnessMax}" value="${led.brightness}" data-direct-field="brightness" aria-label="${DIRECT_LED_NAMES[index]} brightness" /></label>
       <label class="direct-effect-field">Effect<select data-direct-field="effect" aria-label="${DIRECT_LED_NAMES[index]} effect"><option value="steady" ${led.effect === 'steady' ? 'selected' : ''}>Steady</option><option value="flash" ${led.effect === 'flash' ? 'selected' : ''}>Flash</option><option value="rgb" ${led.effect === 'rgb' ? 'selected' : ''}>RGB fade</option></select></label>
       <label class="direct-timing-field">Period <input type="number" min="${led.effect === 'rgb' ? DIRECT_LED_RGB_MIN_PERIOD_MS : 40}" max="81900" step="20" value="${led.periodMs}" data-direct-field="periodMs" ${led.effect === 'steady' ? 'disabled' : ''} /><span>ms</span></label>
-      <label class="direct-duty-field">On <output>${led.duty}%</output><input type="range" min="1" max="99" value="${led.duty}" data-direct-field="duty" ${led.effect === 'flash' ? '' : 'disabled'} /></label>
+      <label class="direct-duty-field">On <output>${directDutyLabel(led)}</output><input type="range" min="1" max="99" value="${led.duty}" data-direct-field="duty" ${led.effect === 'flash' ? '' : 'disabled'} /></label>
       <label class="direct-delay-field">Delay <input type="number" min="0" max="81900" step="20" value="${led.delayMs}" data-direct-field="delayMs" ${led.effect === 'steady' ? 'disabled' : ''} /><span>ms</span></label>`;
 
     const refreshRow = () => {
       const periodControl = row.querySelector('[data-direct-field="periodMs"]');
       row.querySelector('.direct-brightness-field output').value = `${Math.round(led.brightness / 255 * 100)}%`;
-      row.querySelector('.direct-duty-field output').value = `${led.duty}%`;
+      row.querySelector('.direct-duty-field output').value = directDutyLabel(led);
       row.querySelector('[data-direct-field="color"]').disabled = led.effect === 'rgb';
       periodControl.disabled = led.effect === 'steady';
       periodControl.min = led.effect === 'rgb' ? DIRECT_LED_RGB_MIN_PERIOD_MS : 40;
@@ -1550,6 +1792,7 @@ function renderDirectLedControls() {
         else if (field === 'duty') led.duty = clamp(Number(control.value), 1, 99);
         else if (field === 'delayMs') led.delayMs = quantizeDirectMs(control.value, led.delayMs);
 
+        setDirectPatternCustom();
         refreshRow();
         markDirectLedDirty(index);
       };
@@ -1566,40 +1809,6 @@ function renderDirectLedControls() {
   saveDirectLedScene();
 }
 
-function setDirectScenePreset(preset) {
-  state.directLeds.forEach((led, index) => {
-    led.effect = 'steady';
-    led.periodMs = 1_000;
-    led.duty = 50;
-    led.delayMs = 0;
-    if (preset === 'off') {
-      led.brightness = 0;
-    } else if (preset === 'rgb') {
-      led.color = '#ff0000';
-      led.effect = 'rgb';
-      led.periodMs = DIRECT_LED_RGB_PRESET_PERIOD_MS;
-      led.delayMs = index * (DIRECT_LED_RGB_PRESET_PERIOD_MS / DIRECT_LED_COUNT);
-      led.brightness = index < 2 ? 32 : 24;
-    } else if (preset === 'white') {
-      led.color = '#ffd7a0';
-      led.brightness = index < 2 ? 32 : 16;
-    } else {
-      led.color = DIRECT_LED_DEFAULT_COLORS[index];
-      led.brightness = preset === 'identify' ? 64 : (index < 2 ? 32 : 24);
-    }
-  });
-  state.directLedDirty = new Set(Array.from({ length: DIRECT_LED_COUNT }, (_, index) => index));
-  directLedAnimationStart = performance.now();
-  saveDirectLedScene();
-  renderDirectLedControls();
-  $('#direct-led-preview-state').textContent = 'SCENE READY';
-  log(`Prepared the ${preset} direct-LED scene locally.`, 'ok');
-}
-
-$$('[data-direct-preset]').forEach((button) => {
-  button.addEventListener('click', () => setDirectScenePreset(button.dataset.directPreset));
-});
-
 $('#direct-high-power').addEventListener('change', (event) => {
   if (event.target.checked) {
     const approved = window.confirm(
@@ -1608,8 +1817,29 @@ $('#direct-high-power').addEventListener('change', (event) => {
     );
     if (!approved) event.target.checked = false;
   }
-  renderDirectLedControls();
-  saveDirectLedScene();
+  if (state.directPatternSettings.id === 'custom') {
+    renderDirectLedControls();
+    updateDirectPatternControlState();
+  } else {
+    applySelectedDirectPattern();
+  }
+});
+
+$('#direct-rapid-preview').addEventListener('change', (event) => {
+  if (event.target.checked) {
+    const approved = window.confirm(
+      'Preview rapid flashing now?\n\n' +
+      'Flashes from 3–30 Hz can trigger photosensitive reactions. Stop if you feel discomfort, and do not enable this preview around anyone who has not agreed.'
+    );
+    if (!approved) event.target.checked = false;
+  }
+  directLedAnimationStart = performance.now();
+  updateDirectPatternControlState();
+  if ($('#direct-led-preview-state').textContent.includes('APPLY TO SEND')) {
+    $('#direct-led-preview-state').textContent = directHasRapidFlash() && !directRapidPreviewAllowed()
+      ? 'RAPID PREVIEW PAUSED · APPLY TO SEND'
+      : 'PATTERN READY · APPLY TO SEND';
+  }
 });
 
 function renderDirectLeds(elapsedMs) {
@@ -1635,6 +1865,7 @@ function renderDirectLeds(elapsedMs) {
   context.arc(width / 2, 235, 135, 0, Math.PI * 2);
   context.fill();
 
+  const rapidPreviewAllowed = directRapidPreviewAllowed();
   const previewColor = (led) => {
     const delayMs = quantizeDirectMs(led.delayMs, 0);
     const effectElapsedMs = elapsedMs - delayMs;
@@ -1642,6 +1873,7 @@ function renderDirectLeds(elapsedMs) {
 
     let channels = directColorChannels(led.color);
     let enabled = true;
+    let previewScale = 1;
     if (led.effect === 'rgb') {
       const periodMs = quantizeDirectMs(led.periodMs, DIRECT_LED_RGB_PRESET_PERIOD_MS, DIRECT_LED_RGB_MIN_PERIOD_MS);
       const periodTicks = Math.round(periodMs / DIRECT_LED_TICK_MS);
@@ -1652,13 +1884,17 @@ function renderDirectLeds(elapsedMs) {
       else if (hue < 512) channels = [0, 255 - fade, fade];
       else channels = [fade, 0, 255 - fade];
     } else if (led.effect === 'flash') {
-      const periodMs = quantizeDirectMs(led.periodMs, 1_000, 40);
-      const periodTicks = Math.round(periodMs / DIRECT_LED_TICK_MS);
+      const timing = packDirectLedTiming(led);
+      const periodTicks = timing.periodTicks;
       const elapsedTicks = Math.floor(effectElapsedMs / DIRECT_LED_TICK_MS);
-      const onTicks = clamp(Math.round(periodTicks * led.duty / 100), 1, periodTicks);
-      enabled = elapsedTicks % periodTicks < onTicks;
+      const rapid = 1_000 / timing.periodMs >= 3;
+      if (rapid && !rapidPreviewAllowed) {
+        previewScale = Math.max(0.18, timing.effectiveDuty);
+      } else {
+        enabled = elapsedTicks % periodTicks < timing.onTimeTicks;
+      }
     }
-    const scale = enabled ? led.brightness / 255 : 0;
+    const scale = enabled ? led.brightness / 255 * previewScale : 0;
     return channels.map((channel) => Math.round(channel * scale));
   };
   for (let ring = 0; ring < 8; ring += 1) {
@@ -1748,13 +1984,17 @@ function setDirectActionsDisabled(disabled) {
   ['#apply-direct-leds', '#adopt-direct-leds', '#release-direct-leds', '#save-direct-startup'].forEach((selector) => {
     $(selector).disabled = disabled;
   });
-  $$('[data-direct-preset]').forEach((button) => { button.disabled = disabled; });
+  $$('#direct-pattern, #direct-palette, #direct-target, #direct-direction, #direct-speed, #direct-width, #direct-level, #direct-morse-text').forEach((control) => {
+    control.disabled = disabled;
+  });
   $('#direct-high-power').disabled = disabled;
+  $('#direct-rapid-preview').disabled = disabled;
   $('#direct-autostart').disabled = disabled;
   if (disabled) {
     $$('#direct-led-controls input, #direct-led-controls select').forEach((control) => { control.disabled = true; });
   } else {
     renderDirectLedControls();
+    updateDirectPatternControlState();
   }
 }
 
@@ -1780,6 +2020,13 @@ $('#apply-direct-leds').addEventListener('click', async () => {
       'This replaces any BIO program and disables any previously saved startup scene. It does not flash firmware, enter developer mode, or access k0. The controller uses sleep-safe LED timing but remains experimental because it shares the stock LED data pin.'
     );
     if (!approved) return log('Direct LED controller installation cancelled.', 'info');
+  }
+  if (directHasRapidFlash()) {
+    const approved = window.confirm(
+      'Apply a rapid flashing scene to the badge?\n\n' +
+      'This scene contains 3–30 Hz flashes that can trigger photosensitive reactions and will keep running after USB is disconnected.'
+    );
+    if (!approved) return log('Rapid flashing scene was not applied.', 'info');
   }
   if (!(await ensureConnected())) return;
   let binary = null;
@@ -1820,9 +2067,12 @@ $('#apply-direct-leds').addEventListener('click', async () => {
 
 $('#save-direct-startup').addEventListener('click', async () => {
   const enabled = $('#direct-autostart').checked;
-  const approved = window.confirm(enabled
+  const rapidWarning = enabled && directHasRapidFlash()
+    ? '\n\nThis scene contains 3–30 Hz flashes that can trigger photosensitive reactions and will start again after reboot.'
+    : '';
+  const approved = window.confirm((enabled
     ? 'Save the current LED scene for startup?\n\nThis clears and rewrites the persistent BIO image, replaces any other BIO program, and takes about eight minutes at drop-safe serial speed. The scene will start shortly after the badge reboots. If the upload is interrupted, the saved stock light pattern remains available while you retry.'
-    : 'Disable LED auto-start?\n\nThis clears and rewrites the persistent BIO image, replaces any other BIO program, and takes about eight minutes. The badge then returns to its saved stock light gene until Apply is used again.');
+    : 'Disable LED auto-start?\n\nThis clears and rewrites the persistent BIO image, replaces any other BIO program, and takes about eight minutes. The badge then returns to its saved stock light gene until Apply is used again.') + rapidWarning);
   if (!approved) return log('Startup-scene update cancelled.', 'info');
   if (!(await ensureConnected())) return;
 
@@ -1911,6 +2161,7 @@ $('#release-direct-leds').addEventListener('click', async () => {
 });
 
 restoreDirectLedScene();
+initializeDirectPatternControls();
 renderDirectLedControls();
 
 /* Light-gene phenotype simulator */

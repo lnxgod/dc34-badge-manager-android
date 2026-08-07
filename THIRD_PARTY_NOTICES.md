@@ -10,6 +10,17 @@
 
 The full MIT permission notice is preserved at the top of the bundled file. The exact upstream revision of the supplied compiled file was not recorded in the source handoff and remains a provenance follow-up.
 
+## WLED effect-name catalog
+
+- Project: WLED
+- Version: 16.0.1
+- Copyright © 2016–present Christian Schwinne and WLED contributors
+- License: EUPL-1.2-or-later
+- Source: <https://github.com/wled/WLED/tree/v16.0.1>
+- Derived catalog: `app/src/main/assets/www/wled-catalog.js`
+
+The workbench uses WLED's registered effect IDs and names, plus a compact menu grouping derived from upstream metadata, so its pattern menu can describe the complete upstream catalog. No WLED effect algorithms or palette implementations are copied. Badge-ready patterns are independently compiled to the DC34 controller's native steady, flash-to-black, and RGB-wheel modes.
+
 ## usb-serial-for-android
 
 - Project: `mik3y/usb-serial-for-android`

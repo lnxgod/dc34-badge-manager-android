@@ -3,6 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import test from 'node:test';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveSiteBasePath, sitePath } from '../scripts/site-base.mjs';
 
 const testsDirectory = dirname(fileURLToPath(import.meta.url));
 const websiteDirectory = resolve(testsDirectory, '..');
@@ -10,6 +11,7 @@ const repositoryDirectory = resolve(websiteDirectory, '..');
 const distDirectory = join(websiteDirectory, 'dist');
 const badgeSourceDirectory = join(repositoryDirectory, 'app', 'src', 'main', 'assets', 'www');
 const officialTalkTitle = "Why Couldn't I See My Own Drone? Remote ID, ESP32s, and the Packet Trail to Friend or Foe";
+const siteBasePath = resolveSiteBasePath();
 
 async function text(path) {
   return readFile(path, 'utf8');
@@ -18,6 +20,14 @@ async function text(path) {
 function occurrences(source, value) {
   return source.split(value).length - 1;
 }
+
+test('site base path accepts project paths and rejects unsafe values', () => {
+  assert.equal(resolveSiteBasePath('/dc34-badge-manager-android'), '/dc34-badge-manager-android');
+  assert.equal(resolveSiteBasePath('/'), '');
+  for (const unsafeValue of ['dc34badge', '/dc34badge/', '//dc34badge', '/../dc34badge', '/dc34badge?preview=1', '/dc34badge\\preview']) {
+    assert.throws(() => resolveSiteBasePath(unsafeValue), /SITE_BASE_PATH/);
+  }
+});
 
 test('landing page has one verified talk promotion', async () => {
   const html = await text(join(distDirectory, 'index.html'));
@@ -28,19 +38,26 @@ test('landing page has one verified talk promotion', async () => {
   assert.match(html, /Will Hatzer \+ Charles “OhYou_” Grow/);
 });
 
-test('landing page credits the Chief Codex Pilot and uses the production subpath', async () => {
+test('landing page credits the Chief Codex Pilot and uses the selected base path', async () => {
   const html = await text(join(distDirectory, 'index.html'));
 
   assert.match(html, /Charles “OhYou_” Grow/);
   assert.match(html, /Chief Codex Pilot/);
-  assert.match(html, /href="\/dc34badge\/workbench\/index\.html"/);
-  assert.match(html, /href="\/dc34badge\/workbench\/index\.html#image"/);
+  assert.ok(html.includes(`data-site-base-path="${siteBasePath}"`));
+  assert.ok(html.includes(`href="${sitePath(siteBasePath, 'workbench/index.html')}"`));
+  assert.ok(html.includes(`href="${sitePath(siteBasePath, 'workbench/index.html')}#image"`));
   for (const hash of ['image', 'bio', 'console', 'qr', 'lights', 'about']) {
     assert.match(html, new RegExp(`data-hash="${hash}"`));
   }
   assert.match(html, /id="job-panel"[^>]+role="tabpanel"[^>]+aria-labelledby="job-tab-image"/);
-  assert.match(html, /src="\/dc34badge\/site\.js\?v=1"/);
-  assert.match(html, /href="\/dc34badge\/styles\.css\?v=1"/);
+  assert.ok(html.includes(`src="${sitePath(siteBasePath, 'site.js')}?v=1"`));
+  assert.ok(html.includes(`href="${sitePath(siteBasePath, 'styles.css')}?v=1"`));
+  assert.match(html, /rel="canonical" href="https:\/\/gamechangersai\.org\/dc34badge"/);
+  assert.doesNotMatch(html, /__DC34_SITE_BASE_PATH__/);
+
+  const siteJavaScript = await text(join(distDirectory, 'site.js'));
+  assert.match(siteJavaScript, /dataset\.siteBasePath/);
+  assert.doesNotMatch(siteJavaScript, /\/dc34badge\/workbench/);
 });
 
 test('web workbench keeps every shared Android control id', async () => {
@@ -54,15 +71,20 @@ test('web workbench keeps every shared Android control id', async () => {
   assert.match(builtHtml, /web\.js\?v=1/);
   assert.match(builtHtml, /Desktop Chrome or Edge for USB/);
   assert.match(builtHtml, /Charles “OhYou_” Grow · Chief Codex Pilot/);
-  assert.match(builtHtml, /href="\/dc34badge">Back to badge page<\/a>/);
+  assert.ok(builtHtml.includes(`href="${sitePath(siteBasePath)}">Back to badge page</a>`));
   assert.match(builtHtml, /Saving this scene at startup takes about eight minutes/);
   assert.match(builtHtml, /Light pattern simulator/);
+  assert.match(builtHtml, /src="wled-catalog\.js\?v=1"/);
+  assert.match(builtHtml, /src="direct-led-patterns\.js\?v=1"/);
+  assert.match(builtHtml, /src="app\.js\?v=29"/);
   assert.doesNotMatch(builtHtml, /Why Couldn't I See My Own Drone/);
 });
 
 test('build copies shared runtime and binary assets without changing them', async () => {
   const sharedFiles = [
     'app.js',
+    'direct-led-patterns.js',
+    'wled-catalog.js',
     'serial-protocol.js',
     'android-serial.js',
     'vendor/qrcodegen.js',
@@ -77,7 +99,7 @@ test('build copies shared runtime and binary assets without changing them', asyn
 });
 
 test('expected deploy entry points exist', async () => {
-  for (const relativePath of ['index.html', 'styles.css', 'site.js', 'favicon.svg', 'workbench/index.html', 'workbench/web-theme.css', 'workbench/web.js']) {
+  for (const relativePath of ['index.html', 'styles.css', 'site.js', 'favicon.svg', 'workbench/index.html', 'workbench/web-theme.css', 'workbench/web.js', 'workbench/direct-led-patterns.js', 'workbench/wled-catalog.js']) {
     const result = await stat(join(distDirectory, relativePath));
     assert.ok(result.isFile(), `Missing deploy file: ${relativePath}`);
   }

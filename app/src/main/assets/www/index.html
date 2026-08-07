@@ -242,7 +242,7 @@
             <div class="preview-top"><span>10-PIXEL CHAIN PREVIEW</span><span id="direct-led-preview-state">STEADY</span></div>
             <canvas id="direct-led-canvas" width="620" height="430" aria-label="Direct LED scene preview"></canvas>
             <div class="direct-led-legend"><span>0–1 · eyes</span><span>2–9 · ring</span><span>ON-BADGE FX</span></div>
-            <p class="note">The physical clockwise order of ring pixels is not documented. Use the identify preset once to map Ring 1–8 on this badge.</p>
+            <p class="note">The physical clockwise order of ring pixels is not documented. Choose Identify pixels once to map Ring 1–8 on this badge.</p>
           </article>
 
           <article class="card direct-led-controls-card">
@@ -250,14 +250,45 @@
               <div><span>SEALED-MODE PIXEL ENGINE</span><small>Experimental shared-pin takeover</small></div>
               <output id="direct-led-status" aria-live="polite">NOT INSTALLED</output>
             </div>
-            <div class="direct-presets" aria-label="LED presets">
-              <button class="button ghost small" type="button" data-direct-preset="rainbow">Rainbow</button>
-              <button class="button ghost small" type="button" data-direct-preset="rgb">Gamer RGB</button>
-              <button class="button ghost small" type="button" data-direct-preset="identify">Identify</button>
-              <button class="button ghost small" type="button" data-direct-preset="white">Warm white</button>
-              <button class="button ghost small" type="button" data-direct-preset="off">All off</button>
+            <div class="direct-pattern-panel" aria-labelledby="direct-pattern-heading">
+              <div class="direct-pattern-heading">
+                <div><span id="direct-pattern-heading">PATTERN DECK</span><small>Live preview · Apply sends to badge</small></div>
+                <a href="https://kno.wled.ge/features/effects/" target="_blank" rel="noreferrer">WLED catalog ↗</a>
+              </div>
+              <div class="direct-pattern-grid">
+                <label class="direct-pattern-field">Pattern
+                  <select id="direct-pattern"><option value="custom">Custom / per-pixel</option></select>
+                </label>
+                <label class="direct-pattern-field">Palette
+                  <select id="direct-palette"></select>
+                </label>
+                <label class="direct-pattern-field">Target
+                  <select id="direct-target"><option value="all">All 10 pixels</option><option value="ring">Ring only</option><option value="eyes">Eyes only</option></select>
+                </label>
+                <label id="direct-morse-field" class="direct-pattern-field direct-morse-field" hidden>Morse message
+                  <input id="direct-morse-text" type="text" value="SOS" maxlength="12" inputmode="text" autocomplete="off" spellcheck="false" aria-describedby="direct-morse-output" />
+                  <output id="direct-morse-output" aria-live="polite">··· ——— ···</output>
+                </label>
+                <label class="direct-pattern-field">Direction
+                  <select id="direct-direction"><option value="forward">Forward</option><option value="reverse">Reverse</option></select>
+                </label>
+                <label class="direct-pattern-slider">Speed <output id="direct-speed-output">55</output>
+                  <input id="direct-speed" type="range" min="1" max="100" value="55" />
+                </label>
+                <label class="direct-pattern-slider"><span id="direct-width-label">Pulse width</span> <output id="direct-width-output">25%</output>
+                  <input id="direct-width" type="range" min="1" max="99" value="25" />
+                </label>
+                <label class="direct-pattern-slider">Level <output id="direct-level-output">15% full</output>
+                  <input id="direct-level" type="range" min="0" max="100" value="60" />
+                </label>
+              </div>
+              <p id="direct-pattern-note" class="note" aria-live="polite">Choose a badge-ready pattern. Sliders update this preview immediately; USB changes happen only when you choose Apply.</p>
+              <p class="note direct-pattern-limit">Twenty practical patterns work on this ten-pixel badge. Audio and 2D WLED effects need hardware this badge does not have; other disabled effects need richer controller firmware.</p>
             </div>
-            <label class="check power-unlock"><input id="direct-high-power" type="checkbox" /> <span>Unlock brightness above 25%</span></label>
+            <div class="direct-safety-toggles">
+              <label class="check power-unlock"><input id="direct-high-power" type="checkbox" /> <span>Unlock brightness above 25%</span></label>
+              <label class="check motion-unlock"><input id="direct-rapid-preview" type="checkbox" disabled /> <span>Preview rapid flashes (3–30 Hz)</span></label>
+            </div>
             <p id="direct-power-note" class="note warning">The stock firmware runs these LEDs much dimmer for battery and power safety. High-output white scenes can draw substantial current.</p>
             <div id="direct-led-controls" class="direct-led-controls"></div>
             <div class="direct-startup-row">
@@ -371,6 +402,8 @@
     <script src="android-serial.js?v=3"></script>
     <script src="serial-protocol.js?v=1"></script>
     <script src="vendor/qrcodegen.js?v=1"></script>
-    <script src="app.js?v=28"></script>
+    <script src="wled-catalog.js?v=1"></script>
+    <script src="direct-led-patterns.js?v=1"></script>
+    <script src="app.js?v=29"></script>
   </body>
 </html>

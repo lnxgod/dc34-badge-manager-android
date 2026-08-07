@@ -30,7 +30,7 @@ See [all releases](https://github.com/lnxgod/dc34-badge-manager-android/releases
 - **BIO + SAO:** load up to 3,840 bytes, route external lines to pins 21/22/30/31, set a 25 kHz–350 MHz clock, clear BIO, and use FIFO 3 TX/RX.
 - **Serial console:** run stock and custom commands with bounded history and long-payload redaction.
 - **QR Vault tools:** generate time sync, hostname password lookup, TOTP enrollment, and custom QR payloads entirely on-device.
-- **Direct lights:** control both eyes and all eight ring LEDs, effects, phase delays, brightness guard, runtime apply, and optional startup save.
+- **Direct lights:** choose from 20 practical badge-safe patterns—including traffic signal, text-to-Morse, Nyan rainbow, and Hack the planet—plus 14 palettes; browse WLED's complete 216-effect reference catalog, tune the sliders, target eyes or ring pixels, then apply at runtime or save for startup.
 - **Light genes:** generate, mutate, import, preview, and temporarily apply nine-byte phenotypes through the reversible BIO bridge.
 - **Badge guide:** SAO limits, token workflow, light exchange, official source links, and signed-firmware recovery guidance.
 
@@ -50,7 +50,7 @@ See [all releases](https://github.com/lnxgod/dc34-badge-manager-android/releases
 - A USB-C OTG **data** cable or adapter.
 - The official DEF CON 34 human badge.
 
-The badge console is unusually sensitive to bursts. The manager deliberately sends each command byte 80 ms apart, verifies exact command echoes and final results, and waits between commands. The first operation performs a slow 128-backspace synchronization that takes about 13 seconds. Do not background, unplug, or power-cycle the badge during a BIO commit or startup-scene save.
+The badge console is unusually sensitive to bursts. The manager deliberately sends each command byte 80 ms apart, verifies exact command echoes and final results, and waits between commands. Direct-light periods and start delays retain the original workbench's 20 ms controller quantum. The first operation performs a slow 128-backspace synchronization that takes about 13 seconds. Do not background, unplug, or power-cycle the badge during a BIO commit or startup-scene save.
 
 ## Build
 

@@ -1,4 +1,5 @@
 const jobButtons = [...document.querySelectorAll('.job')];
+const siteBasePath = document.documentElement.dataset.siteBasePath || '';
 const jobTitle = document.querySelector('#job-title');
 const jobCopy = document.querySelector('#job-copy');
 const jobPanel = document.querySelector('#job-panel');
@@ -20,7 +21,7 @@ function selectJob(button) {
   jobTitle.textContent = button.dataset.title;
   jobCopy.textContent = button.dataset.copy;
   jobPanel.setAttribute('aria-labelledby', button.id);
-  startJob.href = `/dc34badge/workbench/index.html#${button.dataset.hash}`;
+  startJob.href = `${siteBasePath}/workbench/index.html#${button.dataset.hash}`;
   button.dataset.steps.split('|').forEach((step, index) => {
     jobSteps[index].textContent = step;
   });
