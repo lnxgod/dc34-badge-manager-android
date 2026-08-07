@@ -2,6 +2,7 @@
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const encoder = new TextEncoder();
+const { createCommandEchoGate } = window.DC34SerialProtocol;
 
 const IMAGE_BAUD = 1_000_000;
 const BIO_MAX_BYTES = 0xF00;
@@ -47,6 +48,7 @@ const SERIAL_CHAR_DELAY_MS = 80;
 const SERIAL_COMMAND_SETTLE_MS = 1_000;
 const COMMAND_PURGE_BACKSPACES = 128;
 let commandBoundarySequence = 0;
+let lightAnimationFrame = null;
 // Built from bio/fifo-light-bridge/main.c with the official Zig 0.15.2 BIO toolchain.
 // The locked bridge accepts only a magic-framed 0..8 phenotype sequence and
 // one exact eye-control opcode. SHA-256:
@@ -204,6 +206,7 @@ function selectTab(name, { updateUrl = false, focus = false } = {}) {
     panel.classList.toggle('active', active);
     panel.hidden = !active;
   });
+  updateLightAnimation();
   if (updateUrl && location.hash !== `#${target.dataset.tab}`) {
     history.pushState(null, '', `#${target.dataset.tab}`);
   }
@@ -321,6 +324,9 @@ function nextSerialLine(timeoutMs) {
 }
 
 function clearRxQueue() {
+  // Command boundaries discard an incomplete stale line as well as completed
+  // lines. Otherwise its prefix can be joined to the next exact command echo.
+  state.rxBuffer = '';
   state.rxLines.length = 0;
   state.rxQueuedChars = 0;
 }
@@ -475,6 +481,7 @@ function runSerialOperation(operation) {
     state.serialBusy += 1;
     state.activeSerialSession = session;
     document.body.dataset.serialBusy = 'true';
+    updateLightAnimation();
     try {
       assertSerialSession(session, port, writer);
       await synchronizeShell();
@@ -493,6 +500,7 @@ function runSerialOperation(operation) {
       state.serialBusy -= 1;
       state.serialOperationPending = false;
       if (!state.serialBusy) delete document.body.dataset.serialBusy;
+      updateLightAnimation();
     }
   });
   state.serialTail = run.catch(() => undefined);
@@ -510,11 +518,13 @@ async function writeBytesPaced(bytes) {
   const port = state.port;
   const session = state.activeSerialSession;
   if (!writer || !port || session === null) throw new Error('No serial device is connected.');
-  for (const byte of bytes) {
+  for (let index = 0; index < bytes.length; index += 1) {
     assertSerialSession(session, port, writer);
-    await writer.write(Uint8Array.of(byte));
+    await writer.write(Uint8Array.of(bytes[index]));
     assertSerialSession(session, port, writer);
-    await sleep(SERIAL_CHAR_DELAY_MS);
+    // Pace the gap between bytes. Once the final byte is in the USB driver,
+    // waiting for the badge response already provides the next safe boundary.
+    if (index + 1 < bytes.length) await sleep(SERIAL_CHAR_DELAY_MS);
   }
 }
 
@@ -525,9 +535,12 @@ async function writeLine(line) {
 async function establishCommandBoundary() {
   if (!state.writer) throw new Error('No serial device is connected.');
   if (state.shellSynchronized) return;
-  log('Slow-syncing the badge console; the first serial action takes about 12 seconds.', 'info');
+  log('Slow-syncing the badge console; the first serial action takes about 13 seconds.', 'info');
   clearRxQueue();
   await writeBytesPaced(new Uint8Array(COMMAND_PURGE_BACKSPACES).fill(0x08));
+  // writeBytesPaced intentionally omits a trailing delay, so preserve the
+  // inter-byte gap between the final purge key and the following newline.
+  await sleep(SERIAL_CHAR_DELAY_MS);
   await writeLine('');
   await sleep(SERIAL_COMMAND_SETTLE_MS);
   clearRxQueue();
@@ -568,8 +581,8 @@ async function exchange(line, options = {}) {
     const commandSentAt = performance.now();
     const chatter = [];
     const deadline = Date.now() + maxTotalMs;
-    const expectedEcho = `[console] ${line}`;
-    let sawExpectedEcho = false;
+    const echoGate = createCommandEchoGate(line);
+    const { expectedEcho } = echoGate;
     let retryableError = false;
     let unmatchedCommand = false;
     lastResponse = 'no response';
@@ -584,10 +597,9 @@ async function exchange(line, options = {}) {
       if (raw.includes('Input overflow') && raw.includes('dropping keys')) {
         throw new Error('Badge keyboard queue dropped serial characters; command aborted.');
       }
-      if (response.startsWith('[console]')) {
-        if (response === expectedEcho) {
-          sawExpectedEcho = true;
-        } else if (response !== '[console]') {
+      const echoState = echoGate.consume(response);
+      if (echoState.kind !== 'response') {
+        if (echoState.kind === 'conflicting-echo') {
           throw new Error(`Expected exact command echo, received “${response}”.`);
         }
         chatter.push(raw);
@@ -596,7 +608,7 @@ async function exchange(line, options = {}) {
       // Firmware prints the command echo before dispatch. Anything arriving
       // before that exact echo is stale chatter and must never authorize the
       // current command, even if it happens to be `OK` or `SUCCESS`.
-      if (!sawExpectedEcho) {
+      if (!echoState.authorized) {
         chatter.push(raw);
         continue;
       }
@@ -621,7 +633,7 @@ async function exchange(line, options = {}) {
       }
       chatter.push(raw);
     }
-    if (!sawExpectedEcho) lastResponse = `no exact echo “${expectedEcho}”`;
+    if (!echoGate.hasExpectedEcho()) lastResponse = `no exact echo “${expectedEcho}”`;
 
     const commandName = line.split(' ')[0];
     if (unmatchedCommand && unmatchedAttempt < unmatchedRetries) {
@@ -664,8 +676,8 @@ async function runRawConsoleCommand(line) {
   await writeCommandLine(line);
   const deadline = Date.now() + 20_000;
   const responses = [];
-  const expectedEcho = `[console] ${line}`;
-  let sawExpectedEcho = false;
+  const echoGate = createCommandEchoGate(line);
+  const { expectedEcho } = echoGate;
   let sawResponse = false;
 
   while (Date.now() < deadline) {
@@ -677,17 +689,19 @@ async function runRawConsoleCommand(line) {
     if (raw.includes('Input overflow') && raw.includes('dropping keys')) {
       throw new Error('Badge keyboard queue dropped serial characters; command aborted.');
     }
-    if (response.startsWith('[console]')) {
-      if (response === expectedEcho) sawExpectedEcho = true;
-      else if (response !== '[console]') throw new Error(`Expected exact command echo, received “${response}”.`);
+    const echoState = echoGate.consume(response);
+    if (echoState.kind !== 'response') {
+      if (echoState.kind === 'conflicting-echo') {
+        throw new Error(`Expected exact command echo, received “${response}”.`);
+      }
       continue;
     }
-    if (!sawExpectedEcho) continue;
+    if (!echoState.authorized) continue;
     responses.push(raw);
     sawResponse = true;
     if (['OK', 'CLEAR', 'SUCCESS', 'BIO load successful'].includes(response) || response === 'ERR' || response.startsWith('ERR ')) break;
   }
-  if (!sawExpectedEcho) throw new Error(`No exact command echo “${expectedEcho}” was received.`);
+  if (!echoGate.hasExpectedEcho()) throw new Error(`No exact command echo “${expectedEcho}” was received.`);
   await sleep(SERIAL_COMMAND_SETTLE_MS);
   if (!responses.length) log(`Console command “${line.split(' ')[0]}” returned no response before timeout.`, 'warn');
   return responses;
@@ -830,7 +844,6 @@ async function sendChunks(prefix, bytes, chunkCount, capacityChunks, retries = 0
       ...timing,
     });
     log(`${prefix} chunk ${index + 1}/${capacityChunks}${response === 'SUCCESS' ? ' · complete' : ''}`, 'ok');
-    await sleep(200);
   }
 }
 
@@ -2104,12 +2117,22 @@ function renderGene(elapsedMs) {
 }
 
 let geneAnimationStart = performance.now();
-function animateGene(now) {
-  if (!$('#lights').hidden && !document.hidden) {
-    renderDirectLeds(now - directLedAnimationStart);
-    renderGene(now - geneAnimationStart);
+function updateLightAnimation() {
+  const shouldAnimate = !$('#lights').hidden && !document.hidden && !state.serialBusy;
+  if (shouldAnimate && lightAnimationFrame === null) {
+    lightAnimationFrame = requestAnimationFrame(animateGene);
+  } else if (!shouldAnimate && lightAnimationFrame !== null) {
+    cancelAnimationFrame(lightAnimationFrame);
+    lightAnimationFrame = null;
   }
-  requestAnimationFrame(animateGene);
+}
+
+function animateGene(now) {
+  lightAnimationFrame = null;
+  if ($('#lights').hidden || document.hidden || state.serialBusy) return;
+  renderDirectLeds(now - directLedAnimationStart);
+  renderGene(now - geneAnimationStart);
+  lightAnimationFrame = requestAnimationFrame(animateGene);
 }
 
 $$('[data-gene-index]').forEach((slider) => {
@@ -2306,5 +2329,6 @@ $('#restore-gene').addEventListener('click', async () => {
 });
 
 $('#gene-face-down').addEventListener('change', () => renderGene(performance.now() - geneAnimationStart));
+document.addEventListener('visibilitychange', updateLightAnimation);
 setGene(state.gene);
-requestAnimationFrame(animateGene);
+updateLightAnimation();
