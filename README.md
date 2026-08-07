@@ -18,9 +18,9 @@ The website CI publishes a downloadable static-site artifact on every relevant c
 
 ## Install the beta
 
-[Download DC34 Badge Manager 0.1.1 beta 1 APK](https://github.com/lnxgod/dc34-badge-manager-android/releases/download/v0.1.1-beta.1/dc34-badge-manager-0.1.1-beta.1.apk), then open it on an Android 8.0 or newer phone. Android may ask you to allow **Install unknown apps** for your browser or file manager.
+[Download DC34 Badge Manager 0.1.1 beta 2 APK](https://github.com/lnxgod/dc34-badge-manager-android/releases/download/v0.1.1-beta.2/dc34-badge-manager-0.1.1-beta.2.apk), then open it on an Android 8.0 or newer phone. Android may ask you to allow **Install unknown apps** for your browser or file manager.
 
-This beta APK is test/debug-signed for hardware testing. It uses the same test certificate as beta 0.1.0, so it installs as an in-place update. A later production-signed build may require uninstalling this beta first. SHA-256: `9fbd3972c973943bc14ad1f0a291108a0cf5c6252180f2ac0b6bfba68de51901`.
+This beta APK is test/debug-signed for hardware testing. It uses the same test certificate as the earlier betas, so it installs as an in-place update. A later production-signed build may require uninstalling this beta first. SHA-256: `6f44d52f8a4ae368c646a968e13e08b19ba8f86919de92e5ea2294aaba79ecd6`.
 
 See [all releases](https://github.com/lnxgod/dc34-badge-manager-android/releases) for notes and future builds.
 
@@ -50,7 +50,7 @@ See [all releases](https://github.com/lnxgod/dc34-badge-manager-android/releases
 - A USB-C OTG **data** cable or adapter.
 - The official DEF CON 34 human badge.
 
-The badge console is unusually sensitive to bursts. The manager deliberately sends each command byte 80 ms apart, verifies exact command echoes and final results, and waits between commands. Direct-light periods and start delays retain the original workbench's 20 ms controller quantum. The first operation performs a slow 128-backspace synchronization that takes about 13 seconds. Do not background, unplug, or power-cycle the badge during a BIO commit or startup-scene save.
+The badge console is unusually sensitive to bursts. The manager deliberately sends each command byte 30 ms apart, verifies exact command echoes and final results, and waits between commands. Direct-light periods and start delays retain the original workbench's 20 ms controller quantum. The first operation performs a 128-backspace synchronization that takes about 6 seconds. Do not background, unplug, or power-cycle the badge during a BIO commit or startup-scene save.
 
 ## Build
 
@@ -74,7 +74,7 @@ To install on a connected emulator or phone:
 - Badge I²C addresses `0x19` and `0x3C` are already occupied.
 - Installing either light bridge replaces the current BIO program.
 - Direct LED brightness is capped at 25% until explicitly unlocked; a full-white ten-pixel scene can approach 600 mA.
-- Startup-scene saving rewrites persistent BIO and can take about eight minutes.
+- Startup-scene saving rewrites persistent BIO and can take about four minutes.
 - Custom/developer firmware is a one-way trust transition that erases provisioned secrets; this app does not flash Xous firmware.
 
 See [hardware safety](docs/hardware-safety.md) and [firmware recovery](docs/firmware-recovery.md) before using those features.

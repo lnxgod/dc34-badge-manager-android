@@ -2,7 +2,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createCommandEchoGate } = require('../../main/assets/www/serial-protocol.js');
+const {
+  SERIAL_CHAR_DELAY_MS,
+  createCommandEchoGate,
+  writeBytesPaced,
+} = require('../../main/assets/www/serial-protocol.js');
 
 function accepts(command, lines, accepted = 'OK') {
   const gate = createCommandEchoGate(command);
@@ -49,4 +53,31 @@ test('the firmware bare console marker remains harmless chatter', () => {
     '[console]',
     'OK',
   ]), true);
+});
+
+test('serial bytes use the badge-tested 30 ms inter-character delay', async () => {
+  const events = [];
+  await writeBytesPaced(Uint8Array.of(0x41, 0x42, 0x43), {
+    write: async (byte) => events.push(['write', [...byte]]),
+    wait: async (milliseconds) => events.push(['wait', milliseconds]),
+  });
+
+  assert.equal(SERIAL_CHAR_DELAY_MS, 30);
+  assert.deepEqual(events, [
+    ['write', [0x41]],
+    ['wait', 30],
+    ['write', [0x42]],
+    ['wait', 30],
+    ['write', [0x43]],
+  ]);
+});
+
+test('a one-byte serial write has no trailing delay', async () => {
+  const events = [];
+  await writeBytesPaced(Uint8Array.of(0x0a), {
+    write: async (byte) => events.push(['write', [...byte]]),
+    wait: async (milliseconds) => events.push(['wait', milliseconds]),
+  });
+
+  assert.deepEqual(events, [['write', [0x0a]]]);
 });

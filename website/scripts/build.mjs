@@ -70,8 +70,8 @@ workbenchIndex = replaceOnce(
 );
 workbenchIndex = replaceOnce(
   workbenchIndex,
-  '<script src="app.js?v=29"></script>',
-  '<script src="app.js?v=29"></script>\n    <script src="web.js?v=1"></script>',
+  '<script src="app.js?v=30"></script>',
+  '<script src="app.js?v=30"></script>\n    <script src="web.js?v=1"></script>',
   'the web-only workbench behavior',
 );
 workbenchIndex = replaceOnce(
@@ -130,8 +130,8 @@ workbenchIndex = replaceOnce(
 );
 workbenchIndex = replaceOnce(
   workbenchIndex,
-  '<p class="note direct-startup-note">Startup saving safely clears, writes, and confirms the persistent BIO image before reloading it. It takes about eight minutes at the badge’s drop-safe serial speed; an interrupted save falls back to the stock light pattern. On reboot, wait two seconds for the saved scene. The controller keeps valid LED timing during ordinary WFI sleep, so the display may sleep without turning the LEDs white; the stock battery-only deep power-down still occurs after roughly 25 minutes. To edit after reconnecting, choose <strong>Current controller already installed</strong> before Apply—Install controller &amp; apply intentionally disables the saved startup scene. Normal Apply remains runtime-only.</p>',
-  '<div class="note direct-startup-note task-note"><strong>Saving this scene at startup takes about eight minutes.</strong><ol><li>Turn on <em>Auto-start this scene after reboot</em>.</li><li>Choose <em>Save startup setting</em> and keep the badge connected until it finishes.</li><li>After a reboot, wait two seconds for the lights to start.</li></ol><p>To edit the scene after reconnecting, choose <strong>Current controller already installed</strong>. Installing the controller again turns off the saved startup scene.</p><details class="technical-details"><summary>Technical details</summary><p>An interrupted save returns to the stock light pattern. A normal Apply changes only the current session. The controller keeps valid LED timing during ordinary WFI sleep; the badge’s battery-only deep power-down still occurs after roughly 25 minutes.</p></details></div>',
+  '<p class="note direct-startup-note">Startup saving safely clears, writes, and confirms the persistent BIO image before reloading it. It takes about four minutes at the badge-tested serial speed; an interrupted save falls back to the stock light pattern. On reboot, wait two seconds for the saved scene. The controller keeps valid LED timing during ordinary WFI sleep, so the display may sleep without turning the LEDs white; the stock battery-only deep power-down still occurs after roughly 25 minutes. To edit after reconnecting, choose <strong>Current controller already installed</strong> before Apply—Install controller &amp; apply intentionally disables the saved startup scene. Normal Apply remains runtime-only.</p>',
+  '<div class="note direct-startup-note task-note"><strong>Saving this scene at startup takes about four minutes.</strong><ol><li>Turn on <em>Auto-start this scene after reboot</em>.</li><li>Choose <em>Save startup setting</em> and keep the badge connected until it finishes.</li><li>After a reboot, wait two seconds for the lights to start.</li></ol><p>To edit the scene after reconnecting, choose <strong>Current controller already installed</strong>. Installing the controller again turns off the saved startup scene.</p><details class="technical-details"><summary>Technical details</summary><p>An interrupted save returns to the stock light pattern. A normal Apply changes only the current session. The controller keeps valid LED timing during ordinary WFI sleep; the badge’s battery-only deep power-down still occurs after roughly 25 minutes.</p></details></div>',
   'the direct-light startup instructions',
 );
 workbenchIndex = replaceOnce(

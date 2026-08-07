@@ -295,7 +295,7 @@
               <label class="check"><input id="direct-autostart" type="checkbox" /> <span>Auto-start this scene after reboot</span></label>
               <button id="save-direct-startup" class="button ghost small" type="button">Save startup setting</button>
             </div>
-            <p class="note direct-startup-note">Startup saving safely clears, writes, and confirms the persistent BIO image before reloading it. It takes about eight minutes at the badge’s drop-safe serial speed; an interrupted save falls back to the stock light pattern. On reboot, wait two seconds for the saved scene. The controller keeps valid LED timing during ordinary WFI sleep, so the display may sleep without turning the LEDs white; the stock battery-only deep power-down still occurs after roughly 25 minutes. To edit after reconnecting, choose <strong>Current controller already installed</strong> before Apply—Install controller &amp; apply intentionally disables the saved startup scene. Normal Apply remains runtime-only.</p>
+            <p class="note direct-startup-note">Startup saving safely clears, writes, and confirms the persistent BIO image before reloading it. It takes about four minutes at the badge-tested serial speed; an interrupted save falls back to the stock light pattern. On reboot, wait two seconds for the saved scene. The controller keeps valid LED timing during ordinary WFI sleep, so the display may sleep without turning the LEDs white; the stock battery-only deep power-down still occurs after roughly 25 minutes. To edit after reconnecting, choose <strong>Current controller already installed</strong> before Apply—Install controller &amp; apply intentionally disables the saved startup scene. Normal Apply remains runtime-only.</p>
             <div class="button-row direct-led-actions">
               <button id="apply-direct-leds" class="button" type="button">Install controller &amp; apply</button>
               <button id="adopt-direct-leds" class="button ghost" type="button">Current controller already installed</button>
@@ -400,10 +400,10 @@
 
     <noscript>This workbench needs JavaScript for image conversion, serial access, and QR generation.</noscript>
     <script src="android-serial.js?v=3"></script>
-    <script src="serial-protocol.js?v=1"></script>
+    <script src="serial-protocol.js?v=2"></script>
     <script src="vendor/qrcodegen.js?v=1"></script>
     <script src="wled-catalog.js?v=1"></script>
     <script src="direct-led-patterns.js?v=1"></script>
-    <script src="app.js?v=29"></script>
+    <script src="app.js?v=30"></script>
   </body>
 </html>

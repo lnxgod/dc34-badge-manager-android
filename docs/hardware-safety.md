@@ -21,4 +21,4 @@ BIO uploads are reversible, but bridge/controller installation replaces any othe
 
 Direct LED control is an experimental shared-pin takeover. It does not access the saved light-exchange key (`k0`) or flash Xous. Keep the 25% brightness guard enabled unless the power consequences are understood. Ten full-white WS2812C pixels can approach 600 mA, and rapid flashing can trigger photosensitive reactions.
 
-Startup save clears and rewrites persistent BIO at drop-safe serial speed. Budget about eight minutes and keep both devices powered and awake.
+Startup save clears and rewrites persistent BIO at the badge-tested serial speed. Budget about four minutes and keep both devices powered and awake.

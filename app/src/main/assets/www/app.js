@@ -2,7 +2,11 @@
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const encoder = new TextEncoder();
-const { createCommandEchoGate } = window.DC34SerialProtocol;
+const {
+  SERIAL_CHAR_DELAY_MS,
+  createCommandEchoGate,
+  writeBytesPaced: writeSerialBytesPaced,
+} = window.DC34SerialProtocol;
 
 const IMAGE_BAUD = 1_000_000;
 const BIO_MAX_BYTES = 0xF00;
@@ -49,10 +53,8 @@ const {
   encodeMorse: encodeDirectMorse,
 } = window.DC34DirectLedPatterns;
 const WLED_EFFECTS = window.WledCatalog.effects;
-// USB CDC input is forwarded through the badge keyboard service. Live testing
-// showed that 20–40 ms/byte can still corrupt input while the badge is busy;
-// 80 ms/byte plus a one-second settle produced exact echoes with zero drops.
-const SERIAL_CHAR_DELAY_MS = 80;
+// This one-second post-command boundary is separate from the 30 ms typing gap
+// and the controller's 20 ms LED animation quantum.
 const SERIAL_COMMAND_SETTLE_MS = 1_000;
 const COMMAND_PURGE_BACKSPACES = 128;
 let commandBoundarySequence = 0;
@@ -536,14 +538,11 @@ async function writeBytesPaced(bytes) {
   const port = state.port;
   const session = state.activeSerialSession;
   if (!writer || !port || session === null) throw new Error('No serial device is connected.');
-  for (let index = 0; index < bytes.length; index += 1) {
-    assertSerialSession(session, port, writer);
-    await writer.write(Uint8Array.of(bytes[index]));
-    assertSerialSession(session, port, writer);
-    // Pace the gap between bytes. Once the final byte is in the USB driver,
-    // waiting for the badge response already provides the next safe boundary.
-    if (index + 1 < bytes.length) await sleep(SERIAL_CHAR_DELAY_MS);
-  }
+  await writeSerialBytesPaced(bytes, {
+    write: (byte) => writer.write(byte),
+    wait: sleep,
+    assertReady: () => assertSerialSession(session, port, writer),
+  });
 }
 
 async function writeLine(line) {
@@ -553,7 +552,7 @@ async function writeLine(line) {
 async function establishCommandBoundary() {
   if (!state.writer) throw new Error('No serial device is connected.');
   if (state.shellSynchronized) return;
-  log('Slow-syncing the badge console; the first serial action takes about 13 seconds.', 'info');
+  log('Slow-syncing the badge console; the first serial action takes about 6 seconds.', 'info');
   clearRxQueue();
   await writeBytesPaced(new Uint8Array(COMMAND_PURGE_BACKSPACES).fill(0x08));
   // writeBytesPaced intentionally omits a trailing delay, so preserve the
@@ -2071,8 +2070,8 @@ $('#save-direct-startup').addEventListener('click', async () => {
     ? '\n\nThis scene contains 3–30 Hz flashes that can trigger photosensitive reactions and will start again after reboot.'
     : '';
   const approved = window.confirm((enabled
-    ? 'Save the current LED scene for startup?\n\nThis clears and rewrites the persistent BIO image, replaces any other BIO program, and takes about eight minutes at drop-safe serial speed. The scene will start shortly after the badge reboots. If the upload is interrupted, the saved stock light pattern remains available while you retry.'
-    : 'Disable LED auto-start?\n\nThis clears and rewrites the persistent BIO image, replaces any other BIO program, and takes about eight minutes. The badge then returns to its saved stock light gene until Apply is used again.') + rapidWarning);
+    ? 'Save the current LED scene for startup?\n\nThis clears and rewrites the persistent BIO image, replaces any other BIO program, and takes about four minutes at badge-tested serial speed. The scene will start shortly after the badge reboots. If the upload is interrupted, the saved stock light pattern remains available while you retry.'
+    : 'Disable LED auto-start?\n\nThis clears and rewrites the persistent BIO image, replaces any other BIO program, and takes about four minutes. The badge then returns to its saved stock light gene until Apply is used again.') + rapidWarning);
   if (!approved) return log('Startup-scene update cancelled.', 'info');
   if (!(await ensureConnected())) return;
 

@@ -72,11 +72,12 @@ test('web workbench keeps every shared Android control id', async () => {
   assert.match(builtHtml, /Desktop Chrome or Edge for USB/);
   assert.match(builtHtml, /Charles “OhYou_” Grow · Chief Codex Pilot/);
   assert.ok(builtHtml.includes(`href="${sitePath(siteBasePath)}">Back to badge page</a>`));
-  assert.match(builtHtml, /Saving this scene at startup takes about eight minutes/);
+  assert.match(builtHtml, /Saving this scene at startup takes about four minutes/);
   assert.match(builtHtml, /Light pattern simulator/);
   assert.match(builtHtml, /src="wled-catalog\.js\?v=1"/);
   assert.match(builtHtml, /src="direct-led-patterns\.js\?v=1"/);
-  assert.match(builtHtml, /src="app\.js\?v=29"/);
+  assert.match(builtHtml, /src="serial-protocol\.js\?v=2"/);
+  assert.match(builtHtml, /src="app\.js\?v=30"/);
   assert.doesNotMatch(builtHtml, /Why Couldn't I See My Own Drone/);
 });
 

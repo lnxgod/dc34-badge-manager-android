@@ -8,6 +8,25 @@
   'use strict';
 
   const CONSOLE_PREFIX = '[console]';
+  // Live badge testing established 30 ms as the required inter-character gap.
+  // Keep this independent from LED animation timing and command settlement.
+  const SERIAL_CHAR_DELAY_MS = 30;
+
+  async function writeBytesPaced(bytes, { write, wait, assertReady = () => undefined } = {}) {
+    if (!(bytes instanceof Uint8Array)) throw new TypeError('Serial bytes must be a Uint8Array.');
+    if (typeof write !== 'function' || typeof wait !== 'function' || typeof assertReady !== 'function') {
+      throw new TypeError('Serial pacing requires write, wait, and optional assertReady functions.');
+    }
+
+    for (let index = 0; index < bytes.length; index += 1) {
+      assertReady();
+      await write(Uint8Array.of(bytes[index]));
+      assertReady();
+      // The badge needs a gap between characters, but no extra delay is needed
+      // after the final byte because response handling supplies the boundary.
+      if (index + 1 < bytes.length) await wait(SERIAL_CHAR_DELAY_MS);
+    }
+  }
 
   function createCommandEchoGate(line) {
     const expectedEcho = `${CONSOLE_PREFIX} ${line}`;
@@ -37,5 +56,5 @@
     });
   }
 
-  return { createCommandEchoGate };
+  return { SERIAL_CHAR_DELAY_MS, createCommandEchoGate, writeBytesPaced };
 });
