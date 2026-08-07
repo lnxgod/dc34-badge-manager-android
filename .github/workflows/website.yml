@@ -1,0 +1,86 @@
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - "app/src/main/assets/www/**"
+      - ".github/workflows/website.yml"
+  pull_request:
+    paths:
+      - "website/**"
+      - "app/src/main/assets/www/**"
+      - ".github/workflows/website.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Build and test website
+        working-directory: website
+        run: npm test
+      - name: Upload static-site artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: dc34badge-website
+          path: website/dist
+          if-no-files-found: error
+          retention-days: 14
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && vars.DC34BADGE_DEPLOY_ROLE_ARN != '' && vars.DC34BADGE_CLOUDFRONT_DISTRIBUTION_ID != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "22"
+      - name: Build and test website
+        working-directory: website
+        run: npm test
+      - name: Assume scoped deploy role
+        uses: aws-actions/configure-aws-credentials@61815dcd50bd041e203e49132bacad1fd04d2708 # v5
+        with:
+          role-to-assume: ${{ vars.DC34BADGE_DEPLOY_ROLE_ARN }}
+          role-session-name: dc34badge-github-actions
+          aws-region: us-east-2
+          allowed-account-ids: "345594592214"
+          inline-session-policy: >-
+            {"Version":"2012-10-17","Statement":[{"Sid":"ListBadgePrefix","Effect":"Allow","Action":"s3:ListBucket","Resource":"arn:aws:s3:::gamechangersai-static-web-content","Condition":{"StringLike":{"s3:prefix":["dc34badge","dc34badge/*"]}}},{"Sid":"ManageBadgeObjects","Effect":"Allow","Action":["s3:GetObject","s3:PutObject"],"Resource":["arn:aws:s3:::gamechangersai-static-web-content/dc34badge","arn:aws:s3:::gamechangersai-static-web-content/dc34badge/*"]},{"Sid":"InvalidateBadgePaths","Effect":"Allow","Action":["cloudfront:CreateInvalidation","cloudfront:GetInvalidation"],"Resource":"arn:aws:cloudfront::345594592214:distribution/${{ vars.DC34BADGE_CLOUDFRONT_DISTRIBUTION_ID }}"}]}
+      - name: Upload the DC34 badge prefix
+        run: |
+          aws s3 sync website/dist/ s3://gamechangersai-static-web-content/dc34badge/ --no-progress --cache-control "no-cache" --exclude "index.html" --exclude "workbench/index.html"
+          aws s3 cp website/dist/workbench/index.html s3://gamechangersai-static-web-content/dc34badge/workbench/index.html --no-progress --content-type "text/html; charset=utf-8" --cache-control "no-cache"
+          aws s3 cp website/dist/index.html s3://gamechangersai-static-web-content/dc34badge/index.html --no-progress --content-type "text/html; charset=utf-8" --cache-control "no-cache"
+          aws s3 cp website/dist/index.html s3://gamechangersai-static-web-content/dc34badge --no-progress --content-type "text/html; charset=utf-8" --cache-control "no-cache"
+      - name: Verify deployed objects
+        run: |
+          aws s3api head-object --bucket gamechangersai-static-web-content --key dc34badge
+          aws s3api head-object --bucket gamechangersai-static-web-content --key dc34badge/workbench/index.html
+      - name: Invalidate CloudFront paths
+        run: |
+          INVALIDATION_ID=$(aws cloudfront create-invalidation --distribution-id "${{ vars.DC34BADGE_CLOUDFRONT_DISTRIBUTION_ID }}" --paths "/dc34badge" "/dc34badge/*" --query 'Invalidation.Id' --output text)
+          aws cloudfront wait invalidation-completed --distribution-id "${{ vars.DC34BADGE_CLOUDFRONT_DISTRIBUTION_ID }}" --id "$INVALIDATION_ID"
+      - name: Verify public website
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-all-errors https://gamechangersai.org/dc34badge --output landing.html
+          curl --fail --silent --show-error --retry 5 --retry-all-errors https://gamechangersai.org/dc34badge/workbench/index.html --output workbench.html
+          grep --fixed-strings "DC34 Badge Workbench" landing.html
+          grep --fixed-strings "DC34 Badge Workbench" workbench.html

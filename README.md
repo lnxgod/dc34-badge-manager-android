@@ -1,8 +1,20 @@
-# DC34 Badge Manager for Android
+# DC34 Badge Manager
 
-An offline-first Android workbench for the official DEF CON 34 human badge. It brings the existing DC34 browser workbench to Android USB host mode while preserving the badge-tested protocol rules, previews, safety gates, and local-only data handling.
+An offline-first Android app and local-first browser workbench for the official DEF CON 34 human badge. Both surfaces preserve the badge-tested protocol rules, previews, safety gates, and local-only data handling.
 
 > **Status:** beta. The app builds and can be exercised without a badge, but Android USB port selection and full transfers still require validation on physical DC34 hardware and more than one phone model.
+
+## Web version
+
+The standalone GameChangers AI landing page and browser workbench live in [`website/`](website/README.md). The website reuses the Android app’s badge runtime during its build, so screen art, BIO + SAO, console, QR, and light controls do not drift between platforms.
+
+```sh
+cd website
+npm test
+npm run serve
+```
+
+The website CI publishes a downloadable static-site artifact on every relevant change. Production deployment to `gamechangersai.org/dc34badge` is enabled when the repository has a prefix-scoped `DC34BADGE_DEPLOY_ROLE_ARN` variable for GitHub OIDC and the intended `DC34BADGE_CLOUDFRONT_DISTRIBUTION_ID`.
 
 ## Install the beta
 

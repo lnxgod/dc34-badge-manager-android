@@ -5,6 +5,7 @@ local.properties
 build/
 **/build/
 captures/
+.playwright-mcp/
 .DS_Store
 *.jks
 *.keystore

@@ -1,0 +1,15 @@
+{
+  "name": "dc34-badge-website",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GameChangers AI landing page and browser workbench for the DEF CON 34 badge.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "serve": "node scripts/serve.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
