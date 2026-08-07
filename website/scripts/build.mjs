@@ -64,14 +64,14 @@ workbenchIndex = replaceOnce(
 );
 workbenchIndex = replaceOnce(
   workbenchIndex,
-  '<link rel="stylesheet" href="styles.css?v=10" />',
-  '<link rel="stylesheet" href="styles.css?v=10" />\n    <link rel="stylesheet" href="web-theme.css?v=1" />',
+  '<link rel="stylesheet" href="styles.css?v=11" />',
+  '<link rel="stylesheet" href="styles.css?v=11" />\n    <link rel="stylesheet" href="web-theme.css?v=2" />',
   'the workbench theme',
 );
 workbenchIndex = replaceOnce(
   workbenchIndex,
-  '<script src="app.js?v=30"></script>',
-  '<script src="app.js?v=30"></script>\n    <script src="web.js?v=1"></script>',
+  '<script src="app.js?v=31"></script>',
+  '<script src="app.js?v=31"></script>\n    <script src="web.js?v=1"></script>',
   'the web-only workbench behavior',
 );
 workbenchIndex = replaceOnce(

@@ -23,6 +23,7 @@ const DIRECT_LED_PIXEL_MAGIC = 0xDC34E200;
 const DIRECT_LED_RELEASE_MAGIC = '0xdc340ff0';
 const DIRECT_LED_COUNT = 10;
 const DIRECT_LED_TICK_MS = 20;
+const LIGHT_PREVIEW_FRAME_MS = 1_000 / 30;
 const DIRECT_LED_EFFECT_RGB = 0x1000;
 const DIRECT_LED_RGB_MIN_PERIOD_MS = 1_000;
 const DIRECT_LED_RGB_PRESET_PERIOD_MS = 3_000;
@@ -59,6 +60,8 @@ const SERIAL_COMMAND_SETTLE_MS = 1_000;
 const COMMAND_PURGE_BACKSPACES = 128;
 let commandBoundarySequence = 0;
 let lightAnimationFrame = null;
+let lastLightPreviewRender = Number.NEGATIVE_INFINITY;
+const reducedMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
 // Built from bio/fifo-light-bridge/main.c with the official Zig 0.15.2 BIO toolchain.
 // The locked bridge accepts only a magic-framed 0..8 phenotype sequence and
 // one exact eye-control opcode. SHA-256:
@@ -249,11 +252,10 @@ tabs.forEach((tab, index) => {
 
 function selectHashTab() {
   selectTab(location.hash.slice(1) || 'image');
-  requestAnimationFrame(() => window.scrollTo(0, 0));
 }
 window.addEventListener('hashchange', selectHashTab);
-window.addEventListener('popstate', selectHashTab);
 selectHashTab();
+requestAnimationFrame(() => window.scrollTo(0, 0));
 $('.brand').addEventListener('click', (event) => {
   event.preventDefault();
   selectTab('image', { updateUrl: true });
@@ -1499,9 +1501,12 @@ function directHasRapidFlash() {
   });
 }
 
+function prefersReducedMotion() {
+  return Boolean(reducedMotionQuery?.matches);
+}
+
 function directRapidPreviewAllowed() {
-  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  return !reducedMotion && Boolean($('#direct-rapid-preview')?.checked);
+  return !prefersReducedMotion() && Boolean($('#direct-rapid-preview')?.checked);
 }
 
 function directDutyLabel(led) {
@@ -1644,7 +1649,7 @@ function updateDirectPatternControlState() {
   }
 
   const rapidPreview = $('#direct-rapid-preview');
-  const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const reducedMotion = prefersReducedMotion();
   const rapid = directHasRapidFlash();
   if (!rapid || reducedMotion) rapidPreview.checked = false;
   rapidPreview.disabled = !rapid || reducedMotion;
@@ -2367,23 +2372,46 @@ function renderGene(elapsedMs) {
 }
 
 let geneAnimationStart = performance.now();
+function renderStaticLightPreview() {
+  if ($('#lights').hidden || document.hidden || state.serialBusy) return;
+  renderDirectLeds(0);
+  renderGene(0);
+}
+
 function updateLightAnimation() {
-  const shouldAnimate = !$('#lights').hidden && !document.hidden && !state.serialBusy;
+  const previewVisible = !$('#lights').hidden && !document.hidden && !state.serialBusy;
+  const shouldAnimate = previewVisible && !prefersReducedMotion();
   if (shouldAnimate && lightAnimationFrame === null) {
     lightAnimationFrame = requestAnimationFrame(animateGene);
   } else if (!shouldAnimate && lightAnimationFrame !== null) {
     cancelAnimationFrame(lightAnimationFrame);
     lightAnimationFrame = null;
   }
+  if (previewVisible && prefersReducedMotion()) renderStaticLightPreview();
 }
 
 function animateGene(now) {
   lightAnimationFrame = null;
-  if ($('#lights').hidden || document.hidden || state.serialBusy) return;
-  renderDirectLeds(now - directLedAnimationStart);
-  renderGene(now - geneAnimationStart);
+  if ($('#lights').hidden || document.hidden || state.serialBusy || prefersReducedMotion()) return;
+  if (now - lastLightPreviewRender >= LIGHT_PREVIEW_FRAME_MS) {
+    renderDirectLeds(now - directLedAnimationStart);
+    renderGene(now - geneAnimationStart);
+    lastLightPreviewRender = now;
+  }
   lightAnimationFrame = requestAnimationFrame(animateGene);
 }
+
+['input', 'change', 'click'].forEach((eventName) => {
+  $('#lights').addEventListener(eventName, () => {
+    if (prefersReducedMotion()) renderStaticLightPreview();
+  });
+});
+
+reducedMotionQuery?.addEventListener?.('change', () => {
+  lastLightPreviewRender = Number.NEGATIVE_INFINITY;
+  updateDirectPatternControlState();
+  updateLightAnimation();
+});
 
 $$('[data-gene-index]').forEach((slider) => {
   slider.addEventListener('input', () => {

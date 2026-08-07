@@ -96,7 +96,8 @@ body::before {
   transition: transform 160ms ease, background 160ms ease, border-color 160ms ease, color 160ms ease;
 }
 
-.button:hover:not(:disabled) {
+.button:hover:not(:disabled),
+.button:focus-visible:not(:disabled) {
   background: #9affc2;
 }
 
@@ -105,7 +106,8 @@ body::before {
   color: var(--ink);
 }
 
-.button.ghost:hover:not(:disabled) {
+.button.ghost:hover:not(:disabled),
+.button.ghost:focus-visible:not(:disabled) {
   border-color: var(--acid);
   background: rgba(121, 255, 176, 0.06);
   color: var(--acid);
@@ -193,7 +195,7 @@ body::before {
   grid-template-columns: 28px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  margin: 0;
+  margin: 5px 0;
   padding: 0 13px;
   border-bottom: 1px solid var(--line);
   color: var(--muted);
@@ -213,14 +215,13 @@ body::before {
 .tab:nth-child(5)::before { content: "05"; }
 .tab:nth-child(6)::before { content: "06"; }
 
-.tab:hover {
+.tab:hover,
+.tab:focus-visible {
   color: var(--ink);
   background: rgba(121, 255, 176, 0.05);
 }
 
 .tab.active {
-  min-height: 54px;
-  margin: 5px 0;
   border: 0;
   border-radius: 5px;
   background: var(--acid);
@@ -289,7 +290,8 @@ body::before {
   background: #071311;
 }
 
-.file-drop:hover {
+.file-drop:hover,
+.file-drop:focus-within {
   border-color: var(--acid);
   background: #0c2223;
 }
@@ -510,6 +512,7 @@ footer a {
   .tab {
     min-height: 48px;
     display: block;
+    margin: 0;
     padding: 0 14px;
     border: 0;
     border-bottom: 2px solid transparent;
@@ -521,8 +524,6 @@ footer a {
   }
 
   .tab.active {
-    min-height: 48px;
-    margin: 0;
     border-bottom-color: var(--acid);
     border-radius: 0;
     background: transparent;
@@ -613,9 +614,15 @@ footer a {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   *,
   *::before,
   *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }

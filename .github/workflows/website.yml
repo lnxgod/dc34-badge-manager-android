@@ -122,11 +122,17 @@ jobs:
         run: |
           aws s3 sync website/dist/ s3://gamechangersai-static-web-content/dc34badge/ --no-progress --cache-control "no-cache" --exclude "index.html" --exclude "workbench/index.html"
           aws s3 cp website/dist/workbench/index.html s3://gamechangersai-static-web-content/dc34badge/workbench/index.html --no-progress --content-type "text/html; charset=utf-8" --cache-control "no-cache"
+          aws s3 cp website/dist/workbench/index.html s3://gamechangersai-static-web-content/dc34badge/workbench --no-progress --content-type "text/html; charset=utf-8" --cache-control "no-cache"
+          aws s3api put-object --bucket gamechangersai-static-web-content --key 'dc34badge/workbench/' --body website/dist/workbench/index.html --content-type "text/html; charset=utf-8" --cache-control "no-cache"
           aws s3 cp website/dist/index.html s3://gamechangersai-static-web-content/dc34badge/index.html --no-progress --content-type "text/html; charset=utf-8" --cache-control "no-cache"
           aws s3 cp website/dist/index.html s3://gamechangersai-static-web-content/dc34badge --no-progress --content-type "text/html; charset=utf-8" --cache-control "no-cache"
+          aws s3api put-object --bucket gamechangersai-static-web-content --key 'dc34badge/' --body website/dist/index.html --content-type "text/html; charset=utf-8" --cache-control "no-cache"
       - name: Verify deployed objects
         run: |
           aws s3api head-object --bucket gamechangersai-static-web-content --key dc34badge
+          aws s3api head-object --bucket gamechangersai-static-web-content --key 'dc34badge/'
+          aws s3api head-object --bucket gamechangersai-static-web-content --key dc34badge/workbench
+          aws s3api head-object --bucket gamechangersai-static-web-content --key 'dc34badge/workbench/'
           aws s3api head-object --bucket gamechangersai-static-web-content --key dc34badge/workbench/index.html
       - name: Invalidate CloudFront paths
         run: |
@@ -135,6 +141,12 @@ jobs:
       - name: Verify public website
         run: |
           curl --fail --silent --show-error --retry 5 --retry-all-errors https://gamechangersai.org/dc34badge --output landing.html
+          curl --fail --silent --show-error --retry 5 --retry-all-errors https://gamechangersai.org/dc34badge/ --output landing-slash.html
+          curl --fail --silent --show-error --retry 5 --retry-all-errors https://gamechangersai.org/dc34badge/workbench --output workbench-no-slash.html
+          curl --fail --silent --show-error --retry 5 --retry-all-errors https://gamechangersai.org/dc34badge/workbench/ --output workbench-slash.html
           curl --fail --silent --show-error --retry 5 --retry-all-errors https://gamechangersai.org/dc34badge/workbench/index.html --output workbench.html
           grep --fixed-strings "DC34 Badge Workbench" landing.html
+          grep --fixed-strings "DC34 Badge Workbench" landing-slash.html
+          grep --fixed-strings "DC34 Badge Workbench" workbench-no-slash.html
+          grep --fixed-strings "DC34 Badge Workbench" workbench-slash.html
           grep --fixed-strings "DC34 Badge Workbench" workbench.html

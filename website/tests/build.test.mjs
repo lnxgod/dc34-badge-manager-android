@@ -51,7 +51,8 @@ test('landing page credits the Chief Codex Pilot and uses the selected base path
   }
   assert.match(html, /id="job-panel"[^>]+role="tabpanel"[^>]+aria-labelledby="job-tab-image"/);
   assert.ok(html.includes(`src="${sitePath(siteBasePath, 'site.js')}?v=1"`));
-  assert.ok(html.includes(`href="${sitePath(siteBasePath, 'styles.css')}?v=1"`));
+  assert.ok(html.includes(`href="${sitePath(siteBasePath, 'styles.css')}?v=2"`));
+  assert.equal(occurrences(html, 'releases/tag/v0.1.1-beta.3'), 2);
   assert.match(html, /rel="canonical" href="https:\/\/gamechangersai\.org\/dc34badge"/);
   assert.doesNotMatch(html, /__DC34_SITE_BASE_PATH__/);
 
@@ -67,7 +68,8 @@ test('web workbench keeps every shared Android control id', async () => {
   const builtIds = new Set([...builtHtml.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]));
 
   for (const id of sourceIds) assert.ok(builtIds.has(id), `Missing shared workbench id: ${id}`);
-  assert.match(builtHtml, /web-theme\.css\?v=1/);
+  assert.match(builtHtml, /styles\.css\?v=11/);
+  assert.match(builtHtml, /web-theme\.css\?v=2/);
   assert.match(builtHtml, /web\.js\?v=1/);
   assert.match(builtHtml, /Desktop Chrome or Edge for USB/);
   assert.match(builtHtml, /Charles “OhYou_” Grow · Chief Codex Pilot/);
@@ -77,8 +79,23 @@ test('web workbench keeps every shared Android control id', async () => {
   assert.match(builtHtml, /src="wled-catalog\.js\?v=1"/);
   assert.match(builtHtml, /src="direct-led-patterns\.js\?v=1"/);
   assert.match(builtHtml, /src="serial-protocol\.js\?v=2"/);
-  assert.match(builtHtml, /src="app\.js\?v=30"/);
+  assert.match(builtHtml, /src="app\.js\?v=31"/);
   assert.doesNotMatch(builtHtml, /Why Couldn't I See My Own Drone/);
+});
+
+test('motion stays smooth, stable, and respectful of user preferences', async () => {
+  const landingCss = await text(join(websiteDirectory, 'src', 'styles.css'));
+  const workbenchCss = await text(join(websiteDirectory, 'src', 'workbench-theme.css'));
+  const appJavaScript = await text(join(badgeSourceDirectory, 'app.js'));
+
+  assert.match(landingCss, /badge-float 5s ease-in-out 700ms infinite alternate/);
+  assert.match(landingCss, /\.job \{[^}]*margin: 5px 0;/);
+  assert.doesNotMatch(landingCss, /\.job\.active \{[^}]*margin:/);
+  assert.match(workbenchCss, /\.tab \{[^}]*margin: 5px 0;/);
+  assert.doesNotMatch(workbenchCss, /\.tab\.active \{[^}]*margin:/);
+  assert.match(workbenchCss, /prefers-reduced-motion:[\s\S]*?animation-iteration-count: 1 !important/);
+  assert.match(appJavaScript, /LIGHT_PREVIEW_FRAME_MS = 1_000 \/ 30/);
+  assert.match(appJavaScript, /previewVisible && !prefersReducedMotion\(\)/);
 });
 
 test('build copies shared runtime and binary assets without changing them', async () => {

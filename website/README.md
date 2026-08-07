@@ -47,7 +47,7 @@ SITE_BASE_PATH=/dc34-badge-manager-android npm run serve
 
 ## Production target
 
-Deploy only the contents of `website/dist` to the `dc34badge` prefix of the GameChangers AI static-site bucket. Upload the landing HTML both as `dc34badge` and `dc34badge/index.html`, because the current CloudFront distribution does not rewrite directory paths.
+Deploy only the contents of `website/dist` to the `dc34badge` prefix of the GameChangers AI static-site bucket. Because the current CloudFront distribution does not rewrite directory paths, publish landing HTML as `dc34badge`, `dc34badge/`, and `dc34badge/index.html`. Publish workbench HTML as `dc34badge/workbench`, `dc34badge/workbench/`, and `dc34badge/workbench/index.html`.
 
 Do not use a bucket-wide delete or sync. The deploy identity should be limited to:
 

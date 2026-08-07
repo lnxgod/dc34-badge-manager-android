@@ -56,12 +56,12 @@ button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
   cursor: pointer;
   transition: transform .15s, background .15s, border-color .15s;
 }
-.button:hover:not(:disabled) { transform: translateY(-2px); background: #d8ff8a; }
+.button:hover:not(:disabled), .button:focus-visible:not(:disabled) { transform: translateY(-2px); background: #d8ff8a; }
 .button:disabled { opacity: .38; cursor: not-allowed; }
 .button.compact { padding: 9px 13px; margin-left: 7px; }
 .button.small { padding: 9px 13px; margin-top: 16px; }
 .button.ghost { border-color: var(--line); background: transparent; color: var(--ink); }
-.button.ghost:hover:not(:disabled) { border-color: var(--acid); color: var(--acid); background: rgba(200,243,107,.04); }
+.button.ghost:hover:not(:disabled), .button.ghost:focus-visible:not(:disabled) { border-color: var(--acid); color: var(--acid); background: rgba(200,243,107,.04); }
 
 .hero { max-width: 820px; padding-bottom: 31px; }
 .eyebrow { color: var(--acid); font: 500 11px var(--mono); letter-spacing: .13em; margin: 0 0 13px; }
@@ -74,7 +74,7 @@ html.android-app .shell { padding-top: max(24px, env(safe-area-inset-top)); padd
 .tabs { display: flex; gap: 5px; border-bottom: 1px solid var(--line); margin-bottom: 31px; overflow-x: auto; scrollbar-width: none; }
 .tabs::-webkit-scrollbar { display: none; }
 .tab { flex: 0 0 auto; padding: 12px 19px 14px; color: var(--muted); border: 0; background: transparent; border-bottom: 2px solid transparent; font: 700 13px var(--sans); margin-bottom: -1px; cursor: pointer; }
-.tab:hover { color: var(--ink); }
+.tab:hover, .tab:focus-visible { color: var(--ink); }
 .tab.active { color: var(--acid); border-color: var(--acid); }
 .panel { display: block; }
 .section-heading { display: flex; justify-content: space-between; gap: 28px; align-items: end; margin-bottom: 24px; }
@@ -85,7 +85,7 @@ html.android-app .shell { padding-top: max(24px, env(safe-area-inset-top)); padd
 .image-layout, .bio-layout, .qr-layout { display: grid; grid-template-columns: minmax(310px,.9fr) minmax(420px,1.25fr); gap: 18px; }
 .controls-card, .bio-card, .qr-controls { padding: 19px; }
 .file-drop { display: flex; flex-direction: column; min-height: 180px; justify-content: center; align-items: center; text-align: center; border: 1px dashed #677563; color: var(--muted); cursor: pointer; transition: .15s; }
-.file-drop:hover { border-color: var(--acid); background: #273321; }
+.file-drop:hover, .file-drop:focus-within { border-color: var(--acid); background: #273321; }
 .file-drop input { position: absolute; width: 1px; height: 1px; clip: rect(0,0,0,0); }
 .file-drop strong { color: var(--ink); margin: 5px 0; font-size: 15px; }
 .file-drop span:last-child { font: 11px var(--mono); }
@@ -306,4 +306,13 @@ footer { display: flex; justify-content: space-between; gap: 16px; padding-top: 
   .console-form { grid-template-columns: auto minmax(0,1fr); padding: 0 0 0 11px; }
   .console-form .button { grid-column: 1 / -1; }
   .qr-wrap { min-height: 290px; padding: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
