@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#101411" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'" />
     <title>DC34 / badge control</title>
-    <link rel="stylesheet" href="styles.css?v=11" />
+    <link rel="stylesheet" href="styles.css?v=12" />
   </head>
   <body>
     <main class="shell">
@@ -23,10 +23,10 @@
 
       <section class="hero">
         <p class="eyebrow">LOCAL BADGE WORKBENCH</p>
-        <p class="hero-copy">Prepare display art, load BIO programs, talk to the badge console, and create Vault provisioning codes. Badge data stays in this browser and serial traffic goes only to the device you select.</p>
+        <p class="hero-copy">Pick a tool, then connect the badge when needed. Files stay on this device.</p>
         <div id="android-runtime" class="android-runtime" hidden>
           <strong>ANDROID USB HOST</strong>
-          <span>Connect the badge with a USB-C OTG data cable. Long transfers keep the screen awake and all badge data stays on this device.</span>
+          <span>Connect with a USB-C OTG data cable. Keep the phone awake during transfers.</span>
         </div>
       </section>
 
@@ -42,7 +42,7 @@
       <section id="image" class="panel active" role="tabpanel" aria-labelledby="tab-image" data-panel="image">
         <div class="section-heading">
           <div><p class="eyebrow">DISPLAY CUSTOMIZATION</p><h2>Screen image</h2></div>
-          <p>Convert any image to the badge’s 128 × 128 black-and-white display format, then send it in 32 checked chunks.</p>
+          <p>Choose an image, preview it, then send it to the badge.</p>
         </div>
         <div class="image-layout">
           <article class="card controls-card">
@@ -53,16 +53,18 @@
               <span>PNG, JPEG, WebP, or GIF</span>
             </label>
             <div class="control-row">
-              <label for="threshold">Threshold <output id="threshold-value">128</output></label>
+              <label for="threshold">Black/white cutoff <output id="threshold-value">128</output></label>
               <input id="threshold" type="range" min="0" max="255" value="128" />
             </div>
-            <label class="check"><input id="dither" type="checkbox" checked /> <span>Floyd–Steinberg dithering</span></label>
+            <label class="check"><input id="dither" type="checkbox" checked /> <span>Smooth photo detail (dither)</span></label>
             <label class="check"><input id="invert" type="checkbox" /> <span>Invert black and white</span></label>
             <div class="button-row">
               <button id="send-image" class="button" type="button" disabled>Send image</button>
               <button id="clear-image" class="button ghost" type="button">Clear screen image</button>
             </div>
-            <p class="note">The Android app uses native USB host mode; the desktop site uses Web Serial. The badge port opens at 1,000,000 baud with drop-safe command pacing.</p>
+            <output id="image-transfer-status" class="transfer-status" aria-live="polite">Ready to send.</output>
+            <p class="note warning"><strong>During upload:</strong> Keep the badge still and on the same screen. Moving it or pressing badge buttons can interrupt the transfer. The first upload takes about 35 seconds.</p>
+            <p class="note">Web: use desktop Chrome or Edge. Android: use USB host mode.</p>
           </article>
           <article class="preview-card">
             <div class="preview-top"><span>LIVE PREVIEW</span><span id="image-status">NO IMAGE LOADED</span></div>
@@ -74,8 +76,8 @@
 
       <section id="bio" class="panel" role="tabpanel" aria-labelledby="tab-bio" data-panel="bio" hidden>
         <div class="section-heading">
-          <div><p class="eyebrow">BIO + SAO HACKING</p><h2>I/O co-processor</h2></div>
-          <p>Load a compiled BIO binary, route its four external I/O lines, set its clock, and exchange values through FIFO 3.</p>
+          <div><p class="eyebrow">BIO + SAO</p><h2>Load a small badge program</h2></div>
+          <p>Choose a .bin file, set its SAO pins and clock, then load it.</p>
         </div>
         <div class="bio-layout">
           <article class="card bio-card">
@@ -83,7 +85,7 @@
             <input id="bio-file" class="file-input" type="file" accept=".bin,application/octet-stream" />
             <p class="limit"><span id="bio-meter"></span>Maximum 3,840 bytes</p>
             <fieldset>
-              <legend>External I/O mapping</legend>
+              <legend>Connect the pins you need</legend>
               <div class="sao-grid">
                 <label class="sao-option"><input type="checkbox" value="1" /> <span>SAO I/O 1</span><code>pin 21</code></label>
                 <label class="sao-option"><input type="checkbox" value="2" /> <span>SAO I/O 2</span><code>pin 22</code></label>
@@ -91,7 +93,7 @@
                 <label class="sao-option"><input type="checkbox" value="4" /> <span>SAO I/O 4</span><code>pin 31</code></label>
               </div>
             </fieldset>
-            <label class="field-label" for="quantum">Clock setting <span>maximum 350 MHz</span></label>
+            <label class="field-label" for="quantum">Clock speed <span>25 kHz to 350 MHz</span></label>
             <input id="quantum" class="text-input" type="text" value="10MHz" inputmode="decimal" autocomplete="off" />
             <div class="button-row">
               <button id="send-bio" class="button" type="button" disabled>Load BIO program</button>
@@ -105,7 +107,7 @@
               <li><span>02</span><div><strong>Configure I/O and clock</strong><small id="bio-config"><code>Set a clock or choose I/O</code></small></div></li>
               <li><span>03</span><div><strong>Upload and activate</strong><small id="bio-transfer"><code>Choose a binary first</code></small></div></li>
             </ol>
-            <p class="note">Uploads are reversible: clear or replace the BIO program at any time. Ambiguous replies stop the transfer instead of replaying a possibly successful command.</p>
+            <p class="note">You can clear or replace the BIO program later. A bad reply stops the transfer.</p>
           </article>
         </div>
 
@@ -118,7 +120,7 @@
               <label>Repeat<input id="bio-tx-repeat" class="text-input" type="number" min="1" max="256" value="1" /></label>
             </div>
             <button id="bio-tx" class="button small" type="button">Run bio tx</button>
-            <p class="note">Writes a numeric value to the running BIO program. What it means depends on that program.</p>
+            <p class="note">Sends a number to the running BIO program.</p>
           </article>
           <article class="card tool-card">
             <p class="eyebrow">FIFO 3 · BIO → HOST</p>
@@ -128,24 +130,24 @@
               <label>Timeout (s)<input id="bio-rx-timeout" class="text-input" type="number" min="1" max="30" value="3" /></label>
             </div>
             <button id="bio-rx" class="button small" type="button">Run bio rx</button>
-            <p class="note">Output varies by console build; full responses also appear in the serial console.</p>
+            <p class="note">Replies also appear in the Serial console.</p>
           </article>
           <article class="card tool-card ideas-card">
             <p class="eyebrow">OFFICIAL STARTING POINTS</p>
-            <h3>Build something odd</h3>
+            <h3>Examples and source</h3>
             <div class="chip-links">
               <a href="https://github.com/bunnie/dc34-console/tree/main/src/bio" target="_blank" rel="noreferrer">BIO examples ↗</a>
               <a href="https://github.com/bunnie/dc34-bio" target="_blank" rel="noreferrer">Uploader source ↗</a>
             </div>
-            <p class="note warning">SAO power is 3.0 V and 100 mA total across both ports. Existing badge I²C devices use addresses 0x19 and 0x3C.</p>
+            <p class="note warning">SAO limit: 3.0 V and 100 mA total. Badge I²C uses 0x19 and 0x3C.</p>
           </article>
         </div>
       </section>
 
       <section id="console" class="panel" role="tabpanel" aria-labelledby="tab-console" data-panel="console" hidden>
         <div class="section-heading">
-          <div><p class="eyebrow">USB REPL</p><h2>Serial console</h2></div>
-          <p>Send stock console commands, inspect multiline responses, and use command history with the up and down arrow keys.</p>
+          <div><p class="eyebrow">BADGE ACTIVITY</p><h2>Serial console</h2></div>
+          <p>Send a command and read the reply. Use ↑/↓ for command history.</p>
         </div>
         <article class="card console-card">
           <div class="console-toolbar">
@@ -164,14 +166,14 @@
             <input id="console-command" type="text" maxlength="120" placeholder="ver xous" autocomplete="off" spellcheck="false" />
             <button id="run-command" class="button" type="submit">Run</button>
           </form>
-          <p class="note">Known stock verbs include <code>echo</code>, <code>ver</code>, <code>test</code>, <code>image</code>, and <code>bio</code>. Current stock firmware uses <code>ver xous</code> for its version report; other diagnostic subcommands depend on the installed build.</p>
+          <p class="note">Try <code>echo</code>, <code>ver xous</code>, <code>test</code>, <code>image</code>, or <code>bio</code>.</p>
         </article>
       </section>
 
       <section id="qr" class="panel" role="tabpanel" aria-labelledby="tab-qr" data-panel="qr" hidden>
         <div class="section-heading">
-          <div><p class="eyebrow">VAULT PROVISIONING</p><h2>QR tools</h2></div>
-          <p>Create badge-readable clock, password, and TOTP payloads locally. The preview is generated in-browser without a network QR service.</p>
+          <div><p class="eyebrow">BADGE QR CODES</p><h2>QR tools</h2></div>
+          <p>Create clock, password, TOTP, or custom QR codes. Everything stays on this device.</p>
         </div>
         <div class="qr-layout">
           <article class="card qr-controls">
@@ -184,14 +186,14 @@
             </select>
 
             <div class="qr-fields" data-qr-fields="time">
-              <p class="field-help">Uses this device’s current time in RFC 3339 format. Refresh immediately before scanning.</p>
+              <p class="field-help">Uses this device’s current time. Refresh before scanning.</p>
               <button id="refresh-time" class="button ghost small" type="button">Refresh current time</button>
             </div>
 
             <div class="qr-fields" data-qr-fields="password" hidden>
               <label class="stack-label" for="password-url">Site URL or host</label>
               <input id="password-url" class="text-input" type="text" maxlength="2048" placeholder="example.com" autocomplete="url" />
-              <p class="field-help password-help">The required current-time suffix is included automatically.</p>
+              <p class="field-help password-help">The current time is added automatically.</p>
             </div>
 
             <div class="qr-fields" data-qr-fields="totp" hidden>
@@ -219,40 +221,40 @@
               <button id="copy-payload" class="button" type="button">Copy payload</button>
               <button id="download-qr" class="button ghost" type="button">Download PNG</button>
             </div>
-            <p id="qr-message" class="note">Clock payloads can be scanned immediately.</p>
+            <p id="qr-message" class="note">Scan the code while it is current.</p>
           </article>
 
           <article class="card qr-preview-card">
             <div class="preview-top"><span>SCAN PREVIEW</span><span id="qr-status">READY</span></div>
             <div class="qr-wrap"><canvas id="qr-canvas" width="420" height="420" aria-label="Generated QR code"></canvas></div>
             <button id="open-scan-view" class="button ghost" type="button">Open large scan view</button>
-            <p class="note warning">TOTP codes contain the account secret. This tool keeps it local, but treat screenshots and downloaded QR files as sensitive.</p>
+            <p class="note warning">TOTP QR codes contain your secret. Do not share screenshots or downloads.</p>
           </article>
         </div>
-        <div class="compat-note"><strong>Firmware note</strong><span>Detach the BaoSec module and open the Password or TOTP token screen before scanning. With the module attached, the normal badge screen routes camera scans to encrypted light-pattern exchange instead.</span></div>
+        <div class="compat-note"><strong>Before scanning</strong><span>Remove BaoSec and open Password or TOTP on the badge.</span></div>
       </section>
 
       <section id="lights" class="panel" role="tabpanel" aria-labelledby="tab-lights" data-panel="lights" hidden>
         <div class="section-heading">
           <div><p class="eyebrow">BUILT-IN LIGHTS</p><h2>Direct LED control</h2></div>
-          <p>Set color, brightness, flashing, start delay, and smooth RGB fades for both eyes and all eight ring LEDs independently. Animation runs on the badge after USB is disconnected.</p>
+          <p>Choose a pattern, tune it, then apply it to the eyes and ring LEDs.</p>
         </div>
         <div class="direct-led-layout">
           <article class="card direct-led-preview-card">
-            <div class="preview-top"><span>10-PIXEL CHAIN PREVIEW</span><span id="direct-led-preview-state">STEADY</span></div>
+            <div class="preview-top"><span>BADGE LED PREVIEW</span><span id="direct-led-preview-state">STEADY</span></div>
             <canvas id="direct-led-canvas" width="620" height="430" aria-label="Direct LED scene preview"></canvas>
             <div class="direct-led-legend"><span>0–1 · eyes</span><span>2–9 · ring</span><span>ON-BADGE FX</span></div>
-            <p class="note">The physical clockwise order of ring pixels is not documented. Choose Identify pixels once to map Ring 1–8 on this badge.</p>
+            <p class="note">Use Identify pixels once to label Ring 1–8.</p>
           </article>
 
           <article class="card direct-led-controls-card">
             <div class="direct-led-head">
-              <div><span>SEALED-MODE PIXEL ENGINE</span><small>Experimental shared-pin takeover</small></div>
+              <div><span>LED CONTROLLER</span><small>Runs patterns on the badge</small></div>
               <output id="direct-led-status" aria-live="polite">NOT INSTALLED</output>
             </div>
             <div class="direct-pattern-panel" aria-labelledby="direct-pattern-heading">
               <div class="direct-pattern-heading">
-                <div><span id="direct-pattern-heading">PATTERN DECK</span><small>Live preview · Apply sends to badge</small></div>
+                <div><span id="direct-pattern-heading">PATTERNS</span><small>Preview now · Apply to badge</small></div>
                 <a href="https://kno.wled.ge/features/effects/" target="_blank" rel="noreferrer">WLED catalog ↗</a>
               </div>
               <div class="direct-pattern-grid">
@@ -282,8 +284,8 @@
                   <input id="direct-level" type="range" min="0" max="100" value="60" />
                 </label>
               </div>
-              <p id="direct-pattern-note" class="note" aria-live="polite">Choose a badge-ready pattern. Sliders update this preview immediately; USB changes happen only when you choose Apply.</p>
-              <p class="note direct-pattern-limit">Twenty practical patterns work on this ten-pixel badge. Audio and 2D WLED effects need hardware this badge does not have; other disabled effects need richer controller firmware.</p>
+              <p id="direct-pattern-note" class="note" aria-live="polite">Choose a pattern. The preview updates now; Apply sends it to the badge.</p>
+              <p class="note direct-pattern-limit">Twenty badge-ready patterns are included.</p>
             </div>
             <div class="direct-safety-toggles">
               <label class="check power-unlock"><input id="direct-high-power" type="checkbox" /> <span>Unlock brightness above 25%</span></label>
@@ -295,26 +297,26 @@
               <label class="check"><input id="direct-autostart" type="checkbox" /> <span>Auto-start this scene after reboot</span></label>
               <button id="save-direct-startup" class="button ghost small" type="button">Save startup setting</button>
             </div>
-            <p class="note direct-startup-note">Startup saving safely clears, writes, and confirms the persistent BIO image before reloading it. It takes about four minutes at the badge-tested serial speed; an interrupted save falls back to the stock light pattern. On reboot, wait two seconds for the saved scene. The controller keeps valid LED timing during ordinary WFI sleep, so the display may sleep without turning the LEDs white; the stock battery-only deep power-down still occurs after roughly 25 minutes. To edit after reconnecting, choose <strong>Current controller already installed</strong> before Apply—Install controller &amp; apply intentionally disables the saved startup scene. Normal Apply remains runtime-only.</p>
+            <p class="note direct-startup-note">Startup save takes about six minutes. Keep the badge connected. After reboot, wait two seconds. To edit later, choose <strong>Current controller already installed</strong>.</p>
             <div class="button-row direct-led-actions">
               <button id="apply-direct-leds" class="button" type="button">Install controller &amp; apply</button>
               <button id="adopt-direct-leds" class="button ghost" type="button">Current controller already installed</button>
               <button id="release-direct-leds" class="button ghost" type="button">Release to saved gene</button>
             </div>
-            <p class="note warning">Installation replaces any existing BIO program, but does not flash firmware or read/write <code>k0</code>. Delay is a one-time start offset with 20 ms resolution; it staggers flash and RGB phases. Full scene transfers hold the LEDs off until the complete scene is ready; later single-pixel changes use an atomic four-word update. Rapid 3–30 Hz flashing can trigger photosensitive reactions.</p>
+            <p class="note warning">Installing replaces the current BIO program. Bright scenes use more power. Rapid flashing can trigger photosensitive reactions.</p>
           </article>
         </div>
 
         <div class="section-heading subsection-heading">
-          <div><p class="eyebrow">LIGHT-GENE LAB</p><h2>Phenotype simulator</h2></div>
-          <p>Use the signed stock procedural renderer instead of direct pixels: explore its nine-byte phenotype and official badge-type ranges.</p>
+          <div><p class="eyebrow">SAVED LIGHT PATTERN</p><h2>Light pattern simulator</h2></div>
+          <p>Preview and change the badge’s nine saved light settings.</p>
         </div>
         <div class="gene-layout">
           <article class="card gene-preview-card">
             <div class="preview-top"><span>ANIMATED PREVIEW</span><span>NORMALIZED BRIGHTNESS</span></div>
             <canvas id="gene-canvas" width="620" height="430" aria-label="Animated DC34 light-gene preview"></canvas>
             <label class="check gene-toggle"><input id="gene-face-down" type="checkbox" /> <span>Face down / enable the two eyes</span></label>
-            <label class="stack-label" for="gene-hex">Nine phenotype bytes</label>
+            <label class="stack-label" for="gene-hex">Nine pattern bytes</label>
             <input id="gene-hex" class="text-input" type="text" value="02 80 ff d0 06 20 90 a0 40" spellcheck="false" autocomplete="off" />
             <div class="button-row">
               <button id="import-gene" class="button ghost" type="button">Import bytes</button>
@@ -324,7 +326,7 @@
 
           <article class="card gene-controls-card">
             <div class="preset-row">
-              <label>Badge-type range<select id="gene-preset" class="text-input">
+              <label>Badge style<select id="gene-preset" class="text-input">
                 <option value="goon">Goon</option>
                 <option value="community">Community</option>
                 <option value="village">Village</option>
@@ -357,16 +359,16 @@
             </div>
             <div class="light-bridge">
               <div class="light-bridge-head">
-                <span>SEALED-MODE BIO BRIDGE</span>
+                <span>LIGHT PATTERN BRIDGE</span>
                 <output id="light-bridge-status" aria-live="polite">NOT INSTALLED</output>
               </div>
-              <p>Drive the stock built-in light renderer from these controls without flashing firmware or changing the saved light-exchange key.</p>
+              <p>Control the badge’s built-in light pattern from these sliders.</p>
               <div class="button-row light-bridge-actions">
                 <button id="apply-gene" class="button" type="button">Install bridge &amp; apply</button>
                 <button id="adopt-light-bridge" class="button ghost" type="button">Bridge already installed</button>
                 <button id="restore-gene" class="button ghost" type="button">Restore saved badge gene</button>
               </div>
-              <p class="note warning">First use replaces any existing BIO program. After reconnecting, use <code>Bridge already installed</code> only when this workbench or the direct repair session installed it. The bridge remains across reboot, while the forced phenotype is RAM-only. <code>Restore</code> clears the bridge and asks Vault to render the saved gene again. It never reads or writes <code>k0</code>.</p>
+              <p class="note warning">First use replaces the current BIO program. After reconnecting, choose <code>Bridge already installed</code>. Restore returns to the saved badge pattern.</p>
             </div>
           </article>
         </div>
@@ -374,21 +376,21 @@
 
       <section id="about" class="panel" role="tabpanel" aria-labelledby="tab-about" data-panel="about" hidden>
         <div class="section-heading">
-          <div><p class="eyebrow">CAPABILITY MAP</p><h2>More than a badge</h2></div>
-          <p>A practical map of the official badge projects and the parts this local workbench can operate.</p>
+          <div><p class="eyebrow">BADGE GUIDE</p><h2>What the badge can do</h2></div>
+          <p>Quick links to the main features and official tools.</p>
         </div>
         <div class="guide-grid">
-          <article class="guide-item"><span>01</span><h3>Exchange light patterns</h3><p>Start a receive on the target badge, reveal its nonce QR when prompted, scan that nonce with the donor, then scan the donor’s encrypted pattern back on the target.</p></article>
-          <article class="guide-item"><span>02</span><h3>Customize over USB</h3><p>Upload a display image, load and clear BIO code, configure external I/O, exchange FIFO values, or use the raw serial console.</p></article>
-          <article class="guide-item"><span>03</span><h3>Become a security token</h3><p>The detached BaoSec module can store passwords and TOTPs. Its current QR actions accept time sync, hostname-based password lookup, and standard otpauth TOTP enrollment payloads.</p></article>
-          <article class="guide-item"><span>04</span><h3>Build custom hardware</h3><p>Two 3.0 V SAO ports expose power, I²C, and four BIO-routable I/O signals. Public SoC, console, hardware, and compiler sources make deeper experiments possible.</p></article>
+          <article class="guide-item"><span>01</span><h3>Exchange light patterns</h3><p>Use the badges’ QR exchange flow to share encrypted patterns.</p></article>
+          <article class="guide-item"><span>02</span><h3>Customize over USB</h3><p>Change the screen, BIO program, console, QR codes, and lights.</p></article>
+          <article class="guide-item"><span>03</span><h3>Use BaoSec</h3><p>Store passwords and TOTP accounts on the detachable module.</p></article>
+          <article class="guide-item"><span>04</span><h3>Build custom hardware</h3><p>Use the two SAO ports, I²C, and four BIO I/O signals.</p></article>
         </div>
         <div class="update-note"><strong>Firmware update reminder</strong><span>Hold any button while resetting or power cycling, extract the three update files onto the USB drive, then press a button to commit. Linux users should sync or unmount first.</span><a href="https://defcon.org/34b/latest.zip" target="_blank" rel="noreferrer">Latest firmware ↗</a></div>
       </section>
 
       <section class="log-card" aria-live="polite">
         <div class="log-top"><span>ACTIVITY LOG</span><button id="clear-log" class="text-button" type="button">Clear</button></div>
-        <pre id="log">[ready] Choose a tool, then connect the badge when a serial action needs it.</pre>
+        <pre id="log">[ready] Choose a tool. Connect when asked.</pre>
       </section>
       <footer><span>Android · offline-first · no Internet permission.</span><a href="https://defcon.org/34b/" target="_blank" rel="noreferrer">Official badge help ↗</a></footer>
     </main>
@@ -400,10 +402,9 @@
 
     <noscript>This workbench needs JavaScript for image conversion, serial access, and QR generation.</noscript>
     <script src="android-serial.js?v=3"></script>
-    <script src="serial-protocol.js?v=2"></script>
+    <script src="serial-protocol.js?v=4"></script>
     <script src="vendor/qrcodegen.js?v=1"></script>
-    <script src="wled-catalog.js?v=1"></script>
     <script src="direct-led-patterns.js?v=1"></script>
-    <script src="app.js?v=31"></script>
+    <script src="app.js?v=36"></script>
   </body>
 </html>
