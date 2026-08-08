@@ -6,6 +6,7 @@ const {
   SERIAL_CHAR_DELAY_MS,
   classifyWholeLineResponse,
   createCommandEchoGate,
+  summarizeSerialLine,
   writeBytesBurst: writeSerialBytesBurst,
   writeBytesPaced: writeSerialBytesPaced,
 } = window.DC34SerialProtocol;
@@ -165,11 +166,7 @@ function appendConsole(message) {
 
 function displaySerialLine(line) {
   if (!line) return;
-  let display = line;
-  if (line.length > 180 && /^\[console\]\s+(?:image|bio)\s/.test(line)) {
-    display = `${line.slice(0, line.indexOf(' ', 11))} <chunk payload omitted>`;
-  }
-  appendConsole(`< ${display}`);
+  appendConsole(`< ${summarizeSerialLine(line)}`);
 }
 
 function updateConnection(connected) {
@@ -219,11 +216,19 @@ function setLightBridgeStatus(message, level = '') {
     status.classList.toggle('active', level === 'active');
     status.classList.toggle('error', level === 'error');
   });
-  $('#apply-gene').textContent = state.bridgeMode === 'gene' ? 'Apply changes' : 'Install gene bridge & apply';
+  $('#apply-gene').textContent = state.bridgeMode === 'gene' ? 'Update light pattern' : 'Install BadgeMu & apply';
   const directButton = $('#apply-direct-leds');
   if (directButton) {
-    directButton.textContent = state.bridgeMode === 'direct' ? 'Apply LED changes' : 'Install controller & apply';
+    directButton.textContent = state.bridgeMode === 'direct' ? 'Update badge colors' : 'Install ColorKernel & apply';
   }
+}
+
+function setBridgeMode(mode) {
+  state.bridgeMode = mode;
+  const colorKernel = $('#adopt-direct-leds');
+  const badgeMu = $('#adopt-light-bridge');
+  if (colorKernel) colorKernel.checked = mode === 'direct';
+  if (badgeMu) badgeMu.checked = mode === 'gene';
 }
 
 /* Tabs */
@@ -475,7 +480,7 @@ async function closeSerial(physical = false) {
   state.rxBuffer = '';
   state.shellSynchronized = false;
   clearRxQueue();
-  state.bridgeMode = null;
+  setBridgeMode(null);
   state.directLedSynced = false;
   state.directStartupState = 'unknown';
   state.directStartupFingerprint = null;
@@ -952,6 +957,7 @@ $('#send-image').addEventListener('click', async () => {
   if (!approved) return log('Image upload cancelled.', 'info');
   const button = $('#send-image');
   const payload = imagePayload();
+  let completedChunks = 0;
   setImageEditorDisabled(true);
   button.textContent = 'Waiting for badge…';
   $('#image-status').textContent = 'WAITING FOR BADGE';
@@ -976,6 +982,7 @@ $('#send-image').addEventListener('click', async () => {
         responseMode: 'whole-line',
         maxTotalMs: 4_000,
         onProgress: (completed, total) => {
+          completedChunks = completed;
           button.textContent = `Uploading ${completed}/${total}`;
           $('#image-status').textContent = `UPLOADING ${completed}/${total}`;
           setImageTransferStatus(`Uploading image · ${completed} of ${total} chunks`, 'active');
@@ -987,8 +994,9 @@ $('#send-image').addEventListener('click', async () => {
     });
   } catch (error) {
     $('#image-status').textContent = 'UPLOAD FAILED';
-    setImageTransferStatus(`Upload stopped: ${error.message}`, 'error');
-    log(`Image upload failed: ${error.message}`, 'error');
+    const message = `Image stopped after ${completedChunks}/32 chunks. Reconnect, keep the badge still and on the same screen, then try again.`;
+    setImageTransferStatus(message, 'error');
+    log(message, 'error');
   } finally {
     button.textContent = 'Send image';
     setImageEditorDisabled(false);
@@ -1098,7 +1106,7 @@ $('#send-bio').addEventListener('click', async () => {
   try {
     if (!(await ensureConnected())) return;
     const knownBridge = state.bridgeMode;
-    state.bridgeMode = null;
+    setBridgeMode(null);
     state.directLedSynced = false;
     state.directStartupState = 'unknown';
     state.directStartupFingerprint = null;
@@ -1136,7 +1144,7 @@ $('#clear-bio').addEventListener('click', async () => {
   try {
     if (!(await ensureConnected())) return;
     const knownBridge = state.bridgeMode;
-    state.bridgeMode = null;
+    setBridgeMode(null);
     state.directLedSynced = false;
     setLightBridgeStatus('CLEARING BIO');
     await runSerialOperation(async () => {
@@ -1150,7 +1158,7 @@ $('#clear-bio').addEventListener('click', async () => {
       }
       await exchange('bio clear', { accepted: ['CLEAR'], retries: 0 });
     });
-    state.bridgeMode = null;
+    setBridgeMode(null);
     state.directLedSynced = false;
     state.directStartupState = 'disabled';
     state.directStartupFingerprint = null;
@@ -1246,7 +1254,7 @@ async function submitConsoleCommand(rawLine) {
   try {
     await runSerialOperation(() => {
       if (/^bio(?:\s|$)/i.test(line)) {
-        state.bridgeMode = null;
+        setBridgeMode(null);
         state.directLedSynced = false;
         state.directStartupState = 'unknown';
         state.directStartupFingerprint = null;
@@ -2098,28 +2106,29 @@ function setDirectActionsDisabled(disabled) {
   }
 }
 
-$('#adopt-direct-leds').addEventListener('click', () => {
-  const approved = window.confirm(
-    'Use the BIO program already on this badge as the current direct LED controller?\n\n' +
-    'Only continue if this workbench installed the current sleep-safe controller. Controllers installed before the sleep-timing repair can flash white when the badge sleeps and must be reinstalled. If you are unsure, cancel and use Install; saving a startup setting also installs the current controller. The next Apply sends a complete scene so the browser and badge are synchronized.'
-  );
-  if (!approved) return;
-  state.bridgeMode = 'direct';
-  state.directLedSynced = false;
-  state.directStartupState = 'unknown';
-  state.directStartupFingerprint = null;
-  state.directLedDirty = new Set(Array.from({ length: DIRECT_LED_COUNT }, (_, index) => index));
-  setLightBridgeStatus('PIXEL ENGINE · DECLARED', 'active');
-  log('Using the already-installed direct LED controller for this browser session.', 'ok');
+$('#adopt-direct-leds').addEventListener('change', (event) => {
+  if (event.currentTarget.checked) {
+    setBridgeMode('direct');
+    state.directLedSynced = false;
+    state.directStartupState = 'unknown';
+    state.directStartupFingerprint = null;
+    state.directLedDirty = new Set(Array.from({ length: DIRECT_LED_COUNT }, (_, index) => index));
+    setLightBridgeStatus('COLORKERNEL READY', 'active');
+    log('ColorKernel selected. The next update sends colors without reinstalling.', 'ok');
+  } else if (state.bridgeMode === 'direct') {
+    setBridgeMode(null);
+    state.directLedSynced = false;
+    setLightBridgeStatus('SELECT INSTALLED CONTROLLER');
+  }
 });
 
 $('#apply-direct-leds').addEventListener('click', async () => {
   if (state.bridgeMode !== 'direct') {
     const approved = window.confirm(
-      'Install the sealed-mode direct LED controller?\n\n' +
+      'Install ColorKernel?\n\n' +
       'This replaces any BIO program and disables any previously saved startup scene. It does not flash firmware, enter developer mode, or access k0. The controller uses sleep-safe LED timing but remains experimental because it shares the stock LED data pin.'
     );
-    if (!approved) return log('Direct LED controller installation cancelled.', 'info');
+    if (!approved) return log('ColorKernel installation cancelled.', 'info');
   }
   if (directHasRapidFlash()) {
     const approved = window.confirm(
@@ -2139,24 +2148,24 @@ $('#apply-direct-leds').addEventListener('click', async () => {
       return;
     }
     if (state.bridgeMode !== 'direct') {
-      setLightBridgeStatus('PREPARING CONTROLLER…', 'active');
-      applyButton.textContent = 'Preparing controller…';
+      setLightBridgeStatus('PREPARING COLORKERNEL…', 'active');
+      applyButton.textContent = 'Preparing ColorKernel…';
       binary = await loadDirectLedBinary();
     }
     await runSerialOperation(async () => {
       if (state.bridgeMode !== 'direct') {
-        setLightBridgeStatus('INSTALLING CONTROLLER…', 'active');
-        applyButton.textContent = 'Installing controller…';
+        setLightBridgeStatus('INSTALLING COLORKERNEL…', 'active');
+        applyButton.textContent = 'Installing ColorKernel…';
         await exchange('bio ready', { accepted: ['OK'], retries: 0 });
         await exchange('bio clear', { accepted: ['CLEAR'], retries: 0 });
         await uploadBioBytes(binary, {
           pins: [],
           hz: DIRECT_LED_BRIDGE_CLOCK,
-          label: 'direct LED controller',
+          label: 'ColorKernel controller',
           chunkRetries: 2,
           chunkTiming: { unmatchedRetries: 4, silenceMs: 8_000, maxTotalMs: 12_000 },
         });
-        state.bridgeMode = 'direct';
+        setBridgeMode('direct');
         state.directLedSynced = false;
         state.directStartupState = 'disabled';
         state.directStartupFingerprint = null;
@@ -2170,7 +2179,7 @@ $('#apply-direct-leds').addEventListener('click', async () => {
       log('Applied per-LED color, brightness, flash/RGB effect, period, and start delay with sleep-safe timing; k0 was not accessed.', 'ok');
     });
   } catch (error) {
-    setLightBridgeStatus(state.bridgeMode === 'direct' ? 'CONTROLLER LOADED · RETRY' : 'CHECK BADGE', 'error');
+    setLightBridgeStatus(state.bridgeMode === 'direct' ? 'COLORKERNEL LOADED · RETRY' : 'CHECK BADGE', 'error');
     log(`Could not apply the direct LED scene: ${error.message}`, 'error');
   } finally {
     setDirectActionsDisabled(false);
@@ -2209,7 +2218,7 @@ $('#save-direct-startup').addEventListener('click', async () => {
         chunkTiming: { unmatchedRetries: 4, silenceMs: 8_000, maxTotalMs: 12_000 },
       });
 
-      state.bridgeMode = 'direct';
+      setBridgeMode('direct');
       directLedAnimationStart = performance.now();
       if (enabled) {
         state.directStartupState = 'enabled';
@@ -2231,7 +2240,7 @@ $('#save-direct-startup').addEventListener('click', async () => {
     });
   } catch (error) {
     if (uploadStarted) {
-      state.bridgeMode = null;
+      setBridgeMode(null);
       state.directLedSynced = false;
       state.directStartupState = 'unknown';
       state.directStartupFingerprint = null;
@@ -2245,7 +2254,7 @@ $('#save-direct-startup').addEventListener('click', async () => {
 });
 
 $('#release-direct-leds').addEventListener('click', async () => {
-  if (state.bridgeMode !== 'direct') return log('Declare or install the direct LED controller before releasing it.', 'warn');
+  if (state.bridgeMode !== 'direct') return log('Check ColorKernel installed or install it before releasing it.', 'warn');
   if (!(await ensureConnected())) return;
   state.directLedSynced = false;
   state.directLedDirty = new Set(Array.from({ length: DIRECT_LED_COUNT }, (_, index) => index));
@@ -2606,25 +2615,25 @@ async function releaseInstalledBridge(mode) {
   }
 }
 
-$('#adopt-light-bridge').addEventListener('click', () => {
-  const approved = window.confirm(
-    'Use the BIO program already installed on this badge as the sealed LED bridge?\n\n' +
-    'Only continue if this workbench or the direct repair session installed it. This skips replacement and sends the framed LED words to the current BIO program.'
-  );
-  if (!approved) return;
-  state.bridgeMode = 'gene';
-  state.directLedSynced = false;
-  setLightBridgeStatus('GENE BRIDGE · DECLARED', 'active');
-  log('Using the already-installed sealed LED bridge for this browser session.', 'ok');
+$('#adopt-light-bridge').addEventListener('change', (event) => {
+  if (event.currentTarget.checked) {
+    setBridgeMode('gene');
+    state.directLedSynced = false;
+    setLightBridgeStatus('BADGEMU READY', 'active');
+    log('BadgeMu selected. The next update sends the light pattern without reinstalling.', 'ok');
+  } else if (state.bridgeMode === 'gene') {
+    setBridgeMode(null);
+    setLightBridgeStatus('SELECT INSTALLED CONTROLLER');
+  }
 });
 
 $('#apply-gene').addEventListener('click', async () => {
   if (state.bridgeMode !== 'gene') {
     const approved = window.confirm(
-      'Install the sealed-mode LED bridge?\n\n' +
+      'Install BadgeMu?\n\n' +
       'This replaces any BIO program currently stored on the badge. It does not flash firmware, enter developer mode, or read/write k0. “Restore saved badge gene” removes the bridge afterward.'
     );
-    if (!approved) return log('Light bridge installation cancelled.', 'info');
+    if (!approved) return log('BadgeMu installation cancelled.', 'info');
   }
 
   const gene = state.gene.slice();
@@ -2644,8 +2653,8 @@ $('#apply-gene').addEventListener('click', async () => {
           await sendBridgeWord(DIRECT_LED_RELEASE_MAGIC);
           await sleep(120);
         }
-        setLightBridgeStatus('INSTALLING BRIDGE…', 'active');
-        applyButton.textContent = 'Installing bridge…';
+        setLightBridgeStatus('INSTALLING BADGEMU…', 'active');
+        applyButton.textContent = 'Installing BadgeMu…';
         // Clear the loader's partial-chunk staging buffer before installing a
         // known program. The confirmation above already covers replacement.
         await exchange('bio ready', { accepted: ['OK'], retries: 0 });
@@ -2653,17 +2662,17 @@ $('#apply-gene').addEventListener('click', async () => {
         await uploadBioBytes(LIGHT_BRIDGE_BINARY, {
           pins: [],
           hz: LIGHT_BRIDGE_CLOCK,
-          label: 'sealed light bridge',
+          label: 'BadgeMu light bridge',
           chunkRetries: 2,
           // Re-sending one of these two indexed chunks only overwrites the same
           // staging slot. Keep every later commit/FIFO command non-retrying.
           chunkTiming: { unmatchedRetries: 4, silenceMs: 8_000, maxTotalMs: 12_000 },
         });
-        state.bridgeMode = 'gene';
+        setBridgeMode('gene');
         state.directLedSynced = false;
         state.directStartupState = 'disabled';
         state.directStartupFingerprint = null;
-        setLightBridgeStatus('GENE BRIDGE ACTIVE', 'active');
+        setLightBridgeStatus('BADGEMU ACTIVE', 'active');
         await sleep(150);
       }
       setLightBridgeStatus('SENDING LIGHT PATTERN…', 'active');
@@ -2674,7 +2683,7 @@ $('#apply-gene').addEventListener('click', async () => {
     });
   } catch (error) {
     if (state.bridgeMode === 'gene') {
-      setLightBridgeStatus('BRIDGE LOADED · RETRY', 'error');
+      setLightBridgeStatus('BADGEMU LOADED · RETRY', 'error');
     } else {
       setLightBridgeStatus('CHECK BADGE', 'error');
     }
@@ -2697,7 +2706,7 @@ $('#restore-gene').addEventListener('click', async () => {
   setGeneEditorDisabled(true);
   try {
     setLightBridgeStatus('RESTORING');
-    state.bridgeMode = null;
+    setBridgeMode(null);
     state.directLedSynced = false;
     await runSerialOperation(async () => {
       if (knownBridge) {

@@ -64,14 +64,14 @@ workbenchIndex = replaceOnce(
 );
 workbenchIndex = replaceOnce(
   workbenchIndex,
-  '<link rel="stylesheet" href="styles.css?v=12" />',
-  '<link rel="stylesheet" href="styles.css?v=12" />\n    <link rel="stylesheet" href="web-theme.css?v=2" />',
+  '<link rel="stylesheet" href="styles.css?v=13" />',
+  '<link rel="stylesheet" href="styles.css?v=13" />\n    <link rel="stylesheet" href="web-theme.css?v=2" />',
   'the workbench theme',
 );
 workbenchIndex = replaceOnce(
   workbenchIndex,
-  '<script src="app.js?v=36"></script>',
-  '<script src="app.js?v=36"></script>\n    <script src="web.js?v=1"></script>',
+  '<script src="app.js?v=37"></script>',
+  '<script src="app.js?v=37"></script>\n    <script src="web.js?v=1"></script>',
   'the web-only workbench behavior',
 );
 workbenchIndex = replaceOnce(
@@ -100,20 +100,20 @@ workbenchIndex = replaceOnce(
 );
 workbenchIndex = replaceOnce(
   workbenchIndex,
-  '<p class="note direct-startup-note">Startup save takes about six minutes. Keep the badge connected. After reboot, wait two seconds. To edit later, choose <strong>Current controller already installed</strong>.</p>',
-  '<div class="note direct-startup-note task-note"><strong>Startup save takes about six minutes.</strong><p>Keep the badge connected. After reboot, wait two seconds. To edit later, choose <strong>Current controller already installed</strong>.</p></div>',
+  '<p class="note direct-startup-note">Startup save takes about six minutes. Keep the badge connected. After reboot, wait two seconds. To edit later, check <strong>ColorKernel installed</strong>.</p>',
+  '<div class="note direct-startup-note task-note"><strong>Startup save takes about six minutes.</strong><p>Keep the badge connected. After reboot, wait two seconds. To edit later, check <strong>ColorKernel installed</strong>.</p></div>',
   'the direct-light startup instructions',
 );
 workbenchIndex = replaceOnce(
   workbenchIndex,
-  '<p class="note warning">Installing replaces the current BIO program. Bright scenes use more power. Rapid flashing can trigger photosensitive reactions.</p>',
-  '<div class="note warning task-note"><strong>Before you install</strong><ul><li>Replaces the current BIO program.</li><li>Bright scenes use more power.</li><li>Rapid flashing can trigger photosensitive reactions.</li></ul></div>',
+  '<p class="note warning">Installing replaces the current BIO program. ColorKernel and BadgeMu use the same BIO slot. Bright scenes use more power. Rapid flashing can trigger photosensitive reactions.</p>',
+  '<div class="note warning task-note"><strong>Before you install</strong><ul><li>ColorKernel and BadgeMu share one BIO slot.</li><li>Installing replaces the current BIO program.</li><li>Bright scenes use more power.</li><li>Rapid flashing can trigger photosensitive reactions.</li></ul></div>',
   'the direct-light installation warning',
 );
 workbenchIndex = replaceOnce(
   workbenchIndex,
-  '<p class="note warning">First use replaces the current BIO program. After reconnecting, choose <code>Bridge already installed</code>. Restore returns to the saved badge pattern.</p>',
-  '<div class="note warning task-note"><strong>First use</strong><p>Installing replaces the current BIO program. After reconnecting, choose <strong>Bridge already installed</strong>. Restore returns to the saved badge pattern.</p></div>',
+  '<p class="note warning">Installing replaces the current BIO program. Check <strong>BadgeMu installed</strong> after reconnecting. Restore returns to the saved badge pattern.</p>',
+  '<div class="note warning task-note"><strong>Choose the installed controller</strong><p>Installing replaces the current BIO program. After reconnecting, check <strong>BadgeMu installed</strong>. Restore returns to the saved badge pattern.</p></div>',
   'the light-pattern bridge instructions',
 );
 workbenchIndex = replaceOnce(
