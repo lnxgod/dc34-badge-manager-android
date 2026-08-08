@@ -30,6 +30,10 @@
     { id: 'chase', label: 'Chase', support: 'approx', wledId: 28, description: 'A repeating one-way chase; Direction reverses its travel.' },
     { id: 'running', label: 'Running lights', support: 'approx', wledId: 15, description: 'A wider staggered wave around the selected pixels.' },
     { id: 'dual-sweep', label: 'Dual sweep', support: 'approx', description: 'Two mirrored sweeps move from the edges toward the center.' },
+    { id: 'ping-pong', label: 'Ping pong · left ↔ right', support: 'badge', description: 'Bounce the selected palette between the physical left and right sides.' },
+    { id: 'friend-foe', label: 'Friend or foe', support: 'badge', description: 'Trade a green FRIEND side against a red FOE side.' },
+    { id: 'portal-collision', label: 'Portal collision', support: 'badge', description: 'Fire cyan and magenta pairs toward a shared center.' },
+    { id: 'triforce-pulse', label: 'Triforce pulse', support: 'badge', description: 'Cycle three gold light groups in a repeating power-up pulse.' },
     { id: 'police', label: 'Red + blue', support: 'badge', description: 'Alternate red and blue pixel groups.' },
     { id: 'traffic', label: 'Traffic signal', support: 'approx', wledId: 35, description: 'Cycle red, green, and amber groups with badge-safe timing.' },
     { id: 'morse', label: 'Morse encoder', support: 'badge', description: 'Repeat up to ten Morse marks across the selected LEDs using the original 20 ms timing.' },
@@ -79,6 +83,13 @@
 
   function paletteColors(id) {
     return (PALETTES.find((palette) => palette.id === id) || PALETTES[0]).colors;
+  }
+
+  function sidePhase(index, count) {
+    if (count === 2) return index;
+    if (count === 8) return [0, 1, 1, 1, 1, 0, 0, 0][index];
+    if (count === 10) return [0, 1, 0, 1, 1, 1, 1, 0, 0, 0][index];
+    return index < Math.ceil(count / 2) ? 0 : 1;
   }
 
   function makeLed(color, brightness, effect = 'steady', periodMs = 1_000, duty = 50, delayMs = 0) {
@@ -221,6 +232,39 @@
         const mirrored = Math.min(index, count - 1 - index);
         const position = reverse ? positions - 1 - mirrored : mirrored;
         return makeLed(colorAt(index), brightness, 'flash', cyclePeriod, chaseDuty, phaseDelay(position, cyclePeriod, positions));
+      });
+    }
+
+    if (id === 'ping-pong' || id === 'friend-foe') {
+      const period = periodForSpeed(options.speed, 3_200, 400);
+      return Array.from({ length: count }, (_, index) => {
+        const physicalSide = sidePhase(index, count);
+        const phase = reverse ? 1 - physicalSide : physicalSide;
+        const color = id === 'friend-foe'
+          ? (physicalSide === 0 ? '#20db55' : '#ff2038')
+          : colorAt(physicalSide);
+        return makeLed(color, brightness, 'flash', period, width, phaseDelay(phase, period, 2));
+      });
+    }
+
+    if (id === 'portal-collision') {
+      const positions = Math.ceil(count / 2);
+      return Array.from({ length: count }, (_, index) => {
+        const mirrored = Math.min(index, count - 1 - index);
+        const position = reverse ? positions - 1 - mirrored : mirrored;
+        const color = index < count / 2 ? '#00d8ff' : '#ff00aa';
+        return makeLed(color, brightness, 'flash', cyclePeriod, chaseDuty, phaseDelay(position, cyclePeriod, positions));
+      });
+    }
+
+    if (id === 'triforce-pulse') {
+      const period = periodForSpeed(options.speed, 3_600, 600);
+      const gold = ['#fff2a0', '#ffd000', '#ff8a00'];
+      const phases = Math.min(3, count);
+      return Array.from({ length: count }, (_, index) => {
+        const group = index % phases;
+        const phase = reverse ? phases - 1 - group : group;
+        return makeLed(gold[group], brightness, 'flash', period, width, phaseDelay(phase, period, phases));
       });
     }
 
