@@ -137,8 +137,29 @@ test('triforce pulse cycles three gold groups on the controller tick grid', () =
   assert.ok(scene.every((led) => led.periodMs % 20 === 0 && led.delayMs % 20 === 0));
 });
 
+test('entropy engine is a practical 707-quintillion-year native show', () => {
+  const scene = compilePattern({ id: 'entropy-engine', count: 10, level: 60, brightnessMax: 64 });
+  const expectedTicks = [4001, 4093, 149, 257, 401, 613, 887, 1291, 2053, 3079];
+  const actualTicks = scene.map((led) => packTiming(led).periodTicks);
+  const gcd = (left, right) => right === 0 ? left : gcd(right, left % right);
+
+  assert.deepEqual(actualTicks, expectedTicks);
+  assert.deepEqual(scene.map((led) => led.effect), ['rgb', 'rgb', 'flash', 'flash', 'flash', 'flash', 'flash', 'flash', 'flash', 'flash']);
+  assert.ok(scene.every((led) => led.periodMs <= 81_900 && led.delayMs <= 81_900));
+  for (let left = 0; left < actualTicks.length; left += 1) {
+    for (let right = left + 1; right < actualTicks.length; right += 1) {
+      assert.equal(gcd(actualTicks[left], actualTicks[right]), 1);
+    }
+  }
+
+  const repeatTicks = actualTicks.reduce((product, ticks) => product * BigInt(ticks), 1n);
+  assert.equal(repeatTicks, 1_115_791_465_593_196_987_157_903_261_123n);
+  const repeatYears = Number(repeatTicks) * 0.02 / (365.2425 * 86_400);
+  assert.ok(repeatYears > 7e20);
+});
+
 test('catalog ids and palette ids are unique', () => {
-  assert.equal(PATTERNS.filter((pattern) => pattern.id !== 'custom').length, 24);
+  assert.equal(PATTERNS.filter((pattern) => pattern.id !== 'custom').length, 25);
   assert.equal(new Set(PATTERNS.map((pattern) => pattern.id)).size, PATTERNS.length);
   assert.equal(new Set(PALETTES.map((palette) => palette.id)).size, PALETTES.length);
 });

@@ -81,10 +81,10 @@ test('web workbench keeps every shared Android control id', async () => {
   assert.doesNotMatch(builtHtml, /Experimental shared-pin takeover/);
   assert.match(builtHtml, /Light pattern simulator/);
   assert.doesNotMatch(builtHtml, /src="wled-catalog\.js/);
-  assert.match(builtHtml, /src="direct-led-patterns\.js\?v=2"/);
+  assert.match(builtHtml, /src="direct-led-patterns\.js\?v=3"/);
   assert.match(builtHtml, /src="serial-protocol\.js\?v=5"/);
-  assert.match(builtHtml, /src="app\.js\?v=38"/);
-  assert.match(builtHtml, /Twenty-four badge-ready patterns are included/);
+  assert.match(builtHtml, /src="app\.js\?v=39"/);
+  assert.match(builtHtml, /Twenty-five badge-ready patterns are included/);
   assert.match(builtHtml, /id="adopt-direct-leds" type="checkbox"/);
   assert.match(builtHtml, /id="adopt-light-bridge" type="checkbox"/);
   assert.match(builtHtml, /ColorKernel installed/);

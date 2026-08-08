@@ -1701,6 +1701,10 @@ function populateDirectPatternControls() {
 function updateDirectPatternControlState() {
   const settings = state.directPatternSettings;
   const pattern = DIRECT_LED_PATTERNS.find((candidate) => candidate.id === settings.id) || DIRECT_LED_PATTERNS[0];
+  if (pattern.fixedTarget && settings.target !== pattern.fixedTarget) {
+    settings.target = pattern.fixedTarget;
+    $('#direct-target').value = pattern.fixedTarget;
+  }
   const unlocked = $('#direct-high-power').checked;
   const brightnessMax = unlocked ? 255 : 64;
   const actualLevel = Math.round(brightnessMax * settings.level / 100 / 255 * 100);
@@ -1715,7 +1719,7 @@ function updateDirectPatternControlState() {
   const animated = new Set(['blink', 'strobe', 'colorloop', 'rainbow', 'sweep', 'twinkle', 'sparkle', 'chase', 'running', 'dual-sweep', 'ping-pong', 'friend-foe', 'portal-collision', 'triforce-pulse', 'police', 'traffic', 'morse', 'nyan', 'hack-planet', 'holiday', 'halloween']);
   const pulseWidth = new Set(['blink', 'strobe', 'sweep', 'twinkle', 'sparkle', 'chase', 'running', 'dual-sweep', 'ping-pong', 'friend-foe', 'portal-collision', 'triforce-pulse']);
   const direction = new Set(['rainbow', 'sweep', 'chase', 'running', 'dual-sweep', 'ping-pong', 'friend-foe', 'portal-collision', 'triforce-pulse', 'morse', 'nyan', 'hack-planet']);
-  const palette = !new Set(['off', 'colorloop', 'rainbow', 'friend-foe', 'portal-collision', 'triforce-pulse', 'police', 'traffic', 'nyan', 'hack-planet', 'holiday', 'halloween', 'identify']).has(pattern.id);
+  const palette = !new Set(['off', 'colorloop', 'rainbow', 'friend-foe', 'portal-collision', 'triforce-pulse', 'entropy-engine', 'police', 'traffic', 'nyan', 'hack-planet', 'holiday', 'halloween', 'identify']).has(pattern.id);
   const widthLabels = {
     blink: 'On time',
     strobe: 'Flash width',
@@ -1739,7 +1743,7 @@ function updateDirectPatternControlState() {
   }
 
   $('#direct-palette').disabled = custom || !palette;
-  $('#direct-target').disabled = custom;
+  $('#direct-target').disabled = custom || Boolean(pattern.fixedTarget);
   $('#direct-direction').disabled = custom || !direction.has(pattern.id);
   $('#direct-speed').disabled = custom || !animated.has(pattern.id);
   $('#direct-width').disabled = custom || !pulseWidth.has(pattern.id);
@@ -1776,6 +1780,11 @@ function applySelectedDirectPattern({ announce = false, renderControls = true } 
     updateDirectPatternControlState();
     return;
   }
+  const pattern = DIRECT_LED_PATTERNS.find((candidate) => candidate.id === settings.id);
+  if (pattern?.fixedTarget) {
+    settings.target = pattern.fixedTarget;
+    $('#direct-target').value = pattern.fixedTarget;
+  }
   const targetIndices = directPatternTargetIndices();
   const scene = compileDirectLedPattern({
     id: settings.id,
@@ -1800,7 +1809,6 @@ function applySelectedDirectPattern({ announce = false, renderControls = true } 
     : 'PATTERN READY · APPLY TO SEND';
   updateDirectPatternControlState();
   if (announce) {
-    const pattern = DIRECT_LED_PATTERNS.find((candidate) => candidate.id === settings.id);
     log(`Prepared ${pattern.label} for ${settings.target} locally. Choose Apply to send it to the badge.`, 'ok');
   }
 }

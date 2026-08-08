@@ -70,8 +70,8 @@ workbenchIndex = replaceOnce(
 );
 workbenchIndex = replaceOnce(
   workbenchIndex,
-  '<script src="app.js?v=38"></script>',
-  '<script src="app.js?v=38"></script>\n    <script src="web.js?v=1"></script>',
+  '<script src="app.js?v=39"></script>',
+  '<script src="app.js?v=39"></script>\n    <script src="web.js?v=1"></script>',
   'the web-only workbench behavior',
 );
 workbenchIndex = replaceOnce(
