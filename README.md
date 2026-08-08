@@ -18,7 +18,7 @@ The website CI publishes a downloadable static-site artifact on every relevant c
 
 ## Install the beta
 
-[Download DC34 Badge Manager 0.1.1 beta 4 APK](https://github.com/lnxgod/dc34-badge-manager-android/releases/download/v0.1.1-beta.4/dc34-badge-manager-0.1.1-beta.4.apk), then open it on an Android 8.0 or newer phone. Android may ask you to allow **Install unknown apps** for your browser or file manager.
+[Download DC34 Badge Manager 0.1.1 beta 5 APK](https://github.com/lnxgod/dc34-badge-manager-android/releases/download/v0.1.1-beta.5/dc34-badge-manager-0.1.1-beta.5.apk), then open it on an Android 8.0 or newer phone. Android may ask you to allow **Install unknown apps** for your browser or file manager.
 
 This beta APK is test/debug-signed for hardware testing. It uses the same test certificate as the earlier betas, so it installs as an in-place update. A later production-signed build may require uninstalling this beta first. SHA-256: `541881a3e86456792bab52bea522927a377a485a6aa6067109c88d049e90ab38`.
 
