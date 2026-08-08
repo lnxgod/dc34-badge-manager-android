@@ -34,6 +34,7 @@
     { id: 'friend-foe', label: 'Friend or foe', support: 'badge', description: 'Trade a green FRIEND side against a red FOE side.' },
     { id: 'portal-collision', label: 'Portal collision', support: 'badge', description: 'Fire cyan and magenta pairs toward a shared center.' },
     { id: 'triforce-pulse', label: 'Triforce pulse', support: 'badge', description: 'Cycle three gold light groups in a repeating power-up pulse.' },
+    { id: 'entropy-engine', label: 'Entropy engine · endless show', support: 'badge', fixedTarget: 'all', description: 'Two color-orbit eyes and eight prime-timed ring layers form a 707-quintillion-year show that is effectively never repeated.' },
     { id: 'police', label: 'Red + blue', support: 'badge', description: 'Alternate red and blue pixel groups.' },
     { id: 'traffic', label: 'Traffic signal', support: 'approx', wledId: 35, description: 'Cycle red, green, and amber groups with badge-safe timing.' },
     { id: 'morse', label: 'Morse encoder', support: 'badge', description: 'Repeat up to ten Morse marks across the selected LEDs using the original 20 ms timing.' },
@@ -66,6 +67,20 @@
     K: '-.-', L: '.-..', M: '--', N: '-.', O: '---', P: '.--.', Q: '--.-', R: '.-.', S: '...', T: '-',
     U: '..-', V: '...-', W: '.--', X: '-..-', Y: '-.--', Z: '--..',
     0: '-----', 1: '.----', 2: '..---', 3: '...--', 4: '....-', 5: '.....', 6: '-....', 7: '--...', 8: '---..', 9: '----.',
+  });
+
+  /*
+   * Ten distinct prime periods make the complete scene repeat only after the
+   * product of every clock: 1,115,791,465,593,196,987,157,903,261,123 ticks,
+   * or about 707 quintillion years at the controller's 20 ms quantum.  The
+   * periods intentionally span seconds to a minute so the scene still evolves
+   * visibly instead of optimizing the headline number with ten very slow LEDs.
+   */
+  const ENTROPY_ENGINE = Object.freeze({
+    periodTicks: Object.freeze([4001, 4093, 149, 257, 401, 613, 887, 1291, 2053, 3079]),
+    colors: Object.freeze(['#ff0000', '#ff0000', '#ffffff', '#00d8ff', '#ff00aa', '#ffd000', '#7c5cff', '#20db55', '#ff5a24', '#8fffe0']),
+    duties: Object.freeze([99, 99, 9, 27, 18, 43, 14, 36, 51, 68]),
+    delayTicks: Object.freeze([0, 0, 0, 11, 22, 33, 44, 55, 66, 77]),
   });
 
   function clamp(value, minimum, maximum) {
@@ -266,6 +281,17 @@
         const phase = reverse ? phases - 1 - group : group;
         return makeLed(gold[group], brightness, 'flash', period, width, phaseDelay(phase, period, phases));
       });
+    }
+
+    if (id === 'entropy-engine') {
+      return Array.from({ length: count }, (_, index) => makeLed(
+        ENTROPY_ENGINE.colors[index],
+        brightness,
+        index < 2 ? 'rgb' : 'flash',
+        ENTROPY_ENGINE.periodTicks[index] * TICK_MS,
+        ENTROPY_ENGINE.duties[index],
+        ENTROPY_ENGINE.delayTicks[index] * TICK_MS,
+      ));
     }
 
     if (id === 'nyan') {
