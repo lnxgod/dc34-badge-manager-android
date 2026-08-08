@@ -1712,10 +1712,10 @@ function updateDirectPatternControlState() {
   $('#direct-level-output').value = `${actualLevel}% full`;
 
   const custom = pattern.id === 'custom';
-  const animated = new Set(['blink', 'strobe', 'colorloop', 'rainbow', 'sweep', 'twinkle', 'sparkle', 'chase', 'running', 'dual-sweep', 'police', 'traffic', 'morse', 'nyan', 'hack-planet', 'holiday', 'halloween']);
-  const pulseWidth = new Set(['blink', 'strobe', 'sweep', 'twinkle', 'sparkle', 'chase', 'running', 'dual-sweep']);
-  const direction = new Set(['rainbow', 'sweep', 'chase', 'running', 'dual-sweep', 'morse', 'nyan', 'hack-planet']);
-  const palette = !new Set(['off', 'colorloop', 'rainbow', 'police', 'traffic', 'nyan', 'hack-planet', 'holiday', 'halloween', 'identify']).has(pattern.id);
+  const animated = new Set(['blink', 'strobe', 'colorloop', 'rainbow', 'sweep', 'twinkle', 'sparkle', 'chase', 'running', 'dual-sweep', 'ping-pong', 'friend-foe', 'portal-collision', 'triforce-pulse', 'police', 'traffic', 'morse', 'nyan', 'hack-planet', 'holiday', 'halloween']);
+  const pulseWidth = new Set(['blink', 'strobe', 'sweep', 'twinkle', 'sparkle', 'chase', 'running', 'dual-sweep', 'ping-pong', 'friend-foe', 'portal-collision', 'triforce-pulse']);
+  const direction = new Set(['rainbow', 'sweep', 'chase', 'running', 'dual-sweep', 'ping-pong', 'friend-foe', 'portal-collision', 'triforce-pulse', 'morse', 'nyan', 'hack-planet']);
+  const palette = !new Set(['off', 'colorloop', 'rainbow', 'friend-foe', 'portal-collision', 'triforce-pulse', 'police', 'traffic', 'nyan', 'hack-planet', 'holiday', 'halloween', 'identify']).has(pattern.id);
   const widthLabels = {
     blink: 'On time',
     strobe: 'Flash width',
@@ -1725,6 +1725,10 @@ function updateDirectPatternControlState() {
     chase: 'Tail width',
     running: 'Wave width',
     'dual-sweep': 'Beam width',
+    'ping-pong': 'Hold time',
+    'friend-foe': 'Hold time',
+    'portal-collision': 'Beam width',
+    'triforce-pulse': 'Glow width',
   };
   $('#direct-width-label').textContent = widthLabels[pattern.id] || 'Pulse width';
   $('#direct-width').max = pattern.id === 'strobe' ? '25' : '99';

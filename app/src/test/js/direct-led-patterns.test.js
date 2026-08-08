@@ -106,8 +106,39 @@ test('meme scenes are distinct native animations', () => {
   assert.notDeepEqual(nyan, hack);
 });
 
+test('ping pong alternates the physical left and right badge halves', () => {
+  const scene = compilePattern({ id: 'ping-pong', count: 10, speed: 55, width: 50, level: 60, brightnessMax: 64 });
+  const expectedSides = [0, 1, 0, 1, 1, 1, 1, 0, 0, 0];
+  const delays = [...new Set(scene.map((led) => led.delayMs))];
+  assert.equal(delays.length, 2);
+  expectedSides.forEach((side, index) => assert.equal(scene[index].delayMs, delays[side]));
+  assert.ok(scene.every((led) => led.effect === 'flash' && led.duty === 50));
+});
+
+test('friend or foe uses green and red opposing sides', () => {
+  const scene = compilePattern({ id: 'friend-foe', count: 10, speed: 55, width: 40, level: 60, brightnessMax: 64 });
+  assert.deepEqual([...new Set(scene.map((led) => led.color))], ['#20db55', '#ff2038']);
+  assert.equal(scene[0].color, '#20db55');
+  assert.equal(scene[1].color, '#ff2038');
+  assert.notEqual(scene[0].delayMs, scene[1].delayMs);
+});
+
+test('portal collision sends mirrored cyan and magenta pairs inward', () => {
+  const scene = compilePattern({ id: 'portal-collision', count: 10, speed: 55, width: 25, level: 60, brightnessMax: 64 });
+  assert.equal(scene[0].color, '#00d8ff');
+  assert.equal(scene.at(-1).color, '#ff00aa');
+  assert.deepEqual(scene.map((led) => led.delayMs), [...scene.map((led) => led.delayMs)].reverse());
+});
+
+test('triforce pulse cycles three gold groups on the controller tick grid', () => {
+  const scene = compilePattern({ id: 'triforce-pulse', count: 10, speed: 55, width: 30, level: 60, brightnessMax: 64 });
+  assert.equal(new Set(scene.map((led) => led.color)).size, 3);
+  assert.equal(new Set(scene.map((led) => led.delayMs)).size, 3);
+  assert.ok(scene.every((led) => led.periodMs % 20 === 0 && led.delayMs % 20 === 0));
+});
+
 test('catalog ids and palette ids are unique', () => {
-  assert.equal(PATTERNS.filter((pattern) => pattern.id !== 'custom').length, 20);
+  assert.equal(PATTERNS.filter((pattern) => pattern.id !== 'custom').length, 24);
   assert.equal(new Set(PATTERNS.map((pattern) => pattern.id)).size, PATTERNS.length);
   assert.equal(new Set(PALETTES.map((palette) => palette.id)).size, PALETTES.length);
 });
