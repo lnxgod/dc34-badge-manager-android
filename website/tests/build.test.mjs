@@ -52,7 +52,7 @@ test('landing page credits the Chief Codex Pilot and uses the selected base path
   assert.match(html, /id="job-panel"[^>]+role="tabpanel"[^>]+aria-labelledby="job-tab-image"/);
   assert.ok(html.includes(`src="${sitePath(siteBasePath, 'site.js')}?v=1"`));
   assert.ok(html.includes(`href="${sitePath(siteBasePath, 'styles.css')}?v=2"`));
-  assert.equal(occurrences(html, 'releases/tag/v0.1.1-beta.3'), 2);
+  assert.equal(occurrences(html, 'releases/tag/v0.1.1-beta.4'), 2);
   assert.match(html, /rel="canonical" href="https:\/\/gamechangersai\.org\/dc34badge"/);
   assert.doesNotMatch(html, /__DC34_SITE_BASE_PATH__/);
 
@@ -68,19 +68,48 @@ test('web workbench keeps every shared Android control id', async () => {
   const builtIds = new Set([...builtHtml.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]));
 
   for (const id of sourceIds) assert.ok(builtIds.has(id), `Missing shared workbench id: ${id}`);
-  assert.match(builtHtml, /styles\.css\?v=11/);
+  assert.match(builtHtml, /styles\.css\?v=12/);
   assert.match(builtHtml, /web-theme\.css\?v=2/);
   assert.match(builtHtml, /web\.js\?v=1/);
   assert.match(builtHtml, /Desktop Chrome or Edge for USB/);
   assert.match(builtHtml, /Charles “OhYou_” Grow · Chief Codex Pilot/);
   assert.ok(builtHtml.includes(`href="${sitePath(siteBasePath)}">Back to badge page</a>`));
-  assert.match(builtHtml, /Saving this scene at startup takes about four minutes/);
+  assert.match(builtHtml, /Choose a tool\. Make it yours\./);
+  assert.match(builtHtml, /Startup save takes about six minutes/);
+  assert.match(builtHtml, /Choose a pattern, tune it, then apply it/);
+  assert.doesNotMatch(builtHtml, /Startup saving safely clears, writes, and confirms/);
+  assert.doesNotMatch(builtHtml, /Experimental shared-pin takeover/);
   assert.match(builtHtml, /Light pattern simulator/);
-  assert.match(builtHtml, /src="wled-catalog\.js\?v=1"/);
+  assert.doesNotMatch(builtHtml, /src="wled-catalog\.js/);
   assert.match(builtHtml, /src="direct-led-patterns\.js\?v=1"/);
-  assert.match(builtHtml, /src="serial-protocol\.js\?v=2"/);
-  assert.match(builtHtml, /src="app\.js\?v=31"/);
+  assert.match(builtHtml, /src="serial-protocol\.js\?v=4"/);
+  assert.match(builtHtml, /src="app\.js\?v=36"/);
   assert.doesNotMatch(builtHtml, /Why Couldn't I See My Own Drone/);
+});
+
+test('workbench opens with a ready-to-send Triforce starter image', async () => {
+  const appJavaScript = await text(join(badgeSourceDirectory, 'app.js'));
+  const builtHtml = await text(join(distDirectory, 'workbench', 'index.html'));
+
+  assert.match(appJavaScript, /function createDefaultTriforce\(\)/);
+  assert.match(appJavaScript, /triangle\(64, 13, 37, 91, 60\)/);
+  assert.match(appJavaScript, /triangle\(36, 64, 9, 63, 111\)/);
+  assert.match(appJavaScript, /triangle\(92, 64, 65, 119, 111\)/);
+  assert.match(appJavaScript, /state\.imageName = 'Triforce starter'/);
+  assert.match(appJavaScript, /state\.image = createDefaultTriforce\(\);\nstate\.imageName = 'Triforce starter';\nrenderImage\(\);/);
+  assert.match(builtHtml, /During upload:<\/strong> Keep the badge still and on the same screen/);
+  assert.match(builtHtml, /id="image-transfer-status"[^>]+aria-live="polite"/);
+  assert.match(appJavaScript, /Moving or tilting it can change the badge screen and break the transfer/);
+  assert.match(appJavaScript, /if \(!approved\) return log\('Image upload cancelled\.'/);
+  assert.match(appJavaScript, /IMAGE_CHUNK_SETTLE_MS = 200/);
+  assert.match(appJavaScript, /writeMode: 'burst'/);
+  assert.match(appJavaScript, /settleMs: IMAGE_CHUNK_SETTLE_MS/);
+  assert.match(appJavaScript, /responseMode: 'whole-line'/);
+  assert.match(appJavaScript, /Waiting for badge connection/);
+  assert.match(appJavaScript, /Uploading image · \$\{completed\} of \$\{total\} chunks/);
+  assert.match(appJavaScript, /setLightBridgeStatus\('WAITING FOR BADGE…', 'active'\)/);
+  assert.match(appJavaScript, /setLightBridgeStatus\('SENDING LIGHT SCENE…', 'active'\)/);
+  assert.match(appJavaScript, /setLightBridgeStatus\('SENDING LIGHT PATTERN…', 'active'\)/);
 });
 
 test('motion stays smooth, stable, and respectful of user preferences', async () => {

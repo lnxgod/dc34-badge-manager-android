@@ -101,6 +101,14 @@ html.android-app .shell { padding-top: max(24px, env(safe-area-inset-top)); padd
 .note { color: #899286; font: 11px/1.55 var(--mono); margin: 19px 0 0; }
 .note code { color: #bdc6b9; }
 .note.warning { color: #c3b98f; }
+.transfer-status { display: flex; align-items: center; gap: 9px; min-height: 38px; margin: 12px 0 0; padding: 9px 11px; border: 1px solid #3a463a; background: #141a15; color: #a8b0a5; font: 700 10px/1.4 var(--mono); letter-spacing: .04em; }
+.transfer-status::before { content: ''; width: 8px; height: 8px; flex: 0 0 auto; border-radius: 50%; background: #707970; box-shadow: 0 0 0 3px rgba(112,121,112,.12); }
+.transfer-status.active { border-color: #657a42; color: var(--acid); }
+.transfer-status.active::before { background: var(--acid); box-shadow: 0 0 0 3px rgba(200,243,107,.14); }
+.transfer-status.success { border-color: #456849; color: #b9e7bd; }
+.transfer-status.success::before { background: #78d480; box-shadow: 0 0 0 3px rgba(120,212,128,.14); }
+.transfer-status.error { border-color: #724443; color: var(--danger); }
+.transfer-status.error::before { background: var(--danger); box-shadow: 0 0 0 3px rgba(255,111,105,.14); }
 
 .preview-card { padding: 14px; display: flex; flex-direction: column; }
 .preview-top, .preview-meta, .log-top { display: flex; justify-content: space-between; gap: 12px; font: 10px var(--mono); letter-spacing: .07em; color: var(--muted); }

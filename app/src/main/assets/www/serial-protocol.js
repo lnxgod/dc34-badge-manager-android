@@ -8,9 +8,22 @@
   'use strict';
 
   const CONSOLE_PREFIX = '[console]';
-  // Live badge testing established 30 ms as the required inter-character gap.
-  // Keep this independent from LED animation timing and command settlement.
-  const SERIAL_CHAR_DELAY_MS = 30;
+  // Physical-badge validation at 60 ms completed a Triforce image (32/32),
+  // BIO controller upload (48/48 plus commit/reload), and LED pattern (13/13)
+  // with no retries or input overflow. Keep this independent from the 20 ms
+  // LED quantum and 30 FPS preview throttle.
+  const SERIAL_CHAR_DELAY_MS = 60;
+
+  async function writeBytesBurst(bytes, { write, assertReady = () => undefined } = {}) {
+    if (!(bytes instanceof Uint8Array)) throw new TypeError('Serial bytes must be a Uint8Array.');
+    if (typeof write !== 'function' || typeof assertReady !== 'function') {
+      throw new TypeError('Burst serial writes require write and optional assertReady functions.');
+    }
+
+    assertReady();
+    await write(bytes);
+    assertReady();
+  }
 
   async function writeBytesPaced(bytes, { write, wait, assertReady = () => undefined } = {}) {
     if (!(bytes instanceof Uint8Array)) throw new TypeError('Serial bytes must be a Uint8Array.');
@@ -26,6 +39,17 @@
       // after the final byte because response handling supplies the boundary.
       if (index + 1 < bytes.length) await wait(SERIAL_CHAR_DELAY_MS);
     }
+  }
+
+  function classifyWholeLineResponse(response, accepted) {
+    if (typeof response !== 'string' || !Array.isArray(accepted)) {
+      throw new TypeError('Whole-line response checks require a string and an accepted-response array.');
+    }
+    if (accepted.includes(response)) return 'accepted';
+    // Match the protocol's bare ERR only. Firmware log lines use `ERR :...`
+    // and must remain harmless chatter.
+    if (response === 'ERR') return 'error';
+    return 'chatter';
   }
 
   function createCommandEchoGate(line) {
@@ -56,5 +80,11 @@
     });
   }
 
-  return { SERIAL_CHAR_DELAY_MS, createCommandEchoGate, writeBytesPaced };
+  return {
+    SERIAL_CHAR_DELAY_MS,
+    classifyWholeLineResponse,
+    createCommandEchoGate,
+    writeBytesBurst,
+    writeBytesPaced,
+  };
 });

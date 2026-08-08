@@ -4,7 +4,9 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 const encoder = new TextEncoder();
 const {
   SERIAL_CHAR_DELAY_MS,
+  classifyWholeLineResponse,
   createCommandEchoGate,
+  writeBytesBurst: writeSerialBytesBurst,
   writeBytesPaced: writeSerialBytesPaced,
 } = window.DC34SerialProtocol;
 
@@ -53,10 +55,15 @@ const {
   packTiming: packDirectLedTiming,
   encodeMorse: encodeDirectMorse,
 } = window.DC34DirectLedPatterns;
-const WLED_EFFECTS = window.WledCatalog.effects;
-// This one-second post-command boundary is separate from the 30 ms typing gap
+// This one-second post-command boundary is separate from the verified 60 ms typing gap
 // and the controller's 20 ms LED animation quantum.
 const SERIAL_COMMAND_SETTLE_MS = 1_000;
+// The official dc34-image uploader writes a complete image command at once and
+// waits 200 ms between acknowledged chunks. A physical DC34 badge completed
+// 32/32 chunks without a retry in about 35 seconds including synchronization.
+// Keep this fast path image-only; BIO, LED, console, and synchronization
+// commands retain proven 60 ms pacing.
+const IMAGE_CHUNK_SETTLE_MS = 200;
 const COMMAND_PURGE_BACKSPACES = 128;
 let commandBoundarySequence = 0;
 let lightAnimationFrame = null;
@@ -186,6 +193,14 @@ function setImageEditorDisabled(disabled) {
     $(selector).disabled = disabled;
   });
   if (!disabled) activeImageReady();
+}
+
+function setImageTransferStatus(message, level = '') {
+  const status = $('#image-transfer-status');
+  status.textContent = message;
+  status.classList.toggle('active', level === 'active');
+  status.classList.toggle('success', level === 'success');
+  status.classList.toggle('error', level === 'error');
 }
 
 function setBioEditorDisabled(disabled) {
@@ -547,14 +562,27 @@ async function writeBytesPaced(bytes) {
   });
 }
 
-async function writeLine(line) {
-  await writeBytesPaced(encoder.encode(`${line}\n`));
+async function writeBytesBurst(bytes) {
+  const writer = state.writer;
+  const port = state.port;
+  const session = state.activeSerialSession;
+  if (!writer || !port || session === null) throw new Error('No serial device is connected.');
+  await writeSerialBytesBurst(bytes, {
+    write: (payload) => writer.write(payload),
+    assertReady: () => assertSerialSession(session, port, writer),
+  });
+}
+
+async function writeLine(line, mode = 'paced') {
+  const bytes = encoder.encode(`${line}\n`);
+  if (mode === 'burst') return writeBytesBurst(bytes);
+  await writeBytesPaced(bytes);
 }
 
 async function establishCommandBoundary() {
   if (!state.writer) throw new Error('No serial device is connected.');
   if (state.shellSynchronized) return;
-  log('Slow-syncing the badge console; the first serial action takes about 6 seconds.', 'info');
+  log('Slow-syncing the badge console; the first serial action takes about 10 seconds.', 'info');
   clearRxQueue();
   await writeBytesPaced(new Uint8Array(COMMAND_PURGE_BACKSPACES).fill(0x08));
   // writeBytesPaced intentionally omits a trailing delay, so preserve the
@@ -576,8 +604,8 @@ async function establishCommandBoundary() {
   log('Badge console synchronized with drop-safe pacing.', 'ok');
 }
 
-async function writeCommandLine(line) {
-  await writeLine(line);
+async function writeCommandLine(line, mode = 'paced') {
+  await writeLine(line, mode);
 }
 
 async function exchange(line, options = {}) {
@@ -587,6 +615,9 @@ async function exchange(line, options = {}) {
     unmatchedRetries = 0,
     silenceMs = 4_000,
     maxTotalMs = 12_000,
+    writeMode = 'paced',
+    settleMs = SERIAL_COMMAND_SETTLE_MS,
+    responseMode = 'strict-echo',
   } = options;
   let lastResponse = 'no response';
   let retryAttempt = 0;
@@ -595,7 +626,7 @@ async function exchange(line, options = {}) {
   while (true) {
     assertSerialSession();
     clearRxQueue();
-    await writeCommandLine(line);
+    await writeCommandLine(line, writeMode);
     assertSerialSession();
     const commandSentAt = performance.now();
     const chatter = [];
@@ -613,6 +644,23 @@ async function exchange(line, options = {}) {
       if (raw === null) break;
       const response = raw.trim();
       if (!response) continue;
+      if (responseMode === 'whole-line') {
+        const wholeLineState = classifyWholeLineResponse(response, accepted);
+        if (wholeLineState === 'accepted') {
+          const responseDelayMs = performance.now() - commandSentAt;
+          state.shellSynchronized = true;
+          await sleep(settleMs);
+          assertSerialSession();
+          return { response, chatter, responseDelayMs };
+        }
+        if (wholeLineState === 'error') {
+          lastResponse = response;
+          retryableError = true;
+          break;
+        }
+        chatter.push(raw);
+        continue;
+      }
       if (raw.includes('Input overflow') && raw.includes('dropping keys')) {
         throw new Error('Badge keyboard queue dropped serial characters; command aborted.');
       }
@@ -635,7 +683,7 @@ async function exchange(line, options = {}) {
       if (accepted.includes(response)) {
         const responseDelayMs = performance.now() - commandSentAt;
         state.shellSynchronized = true;
-        await sleep(SERIAL_COMMAND_SETTLE_MS);
+        await sleep(settleMs);
         assertSerialSession();
         return { response, chatter, responseDelayMs };
       }
@@ -731,7 +779,30 @@ function drawBlank() {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, 128, 128);
 }
-drawBlank();
+
+function createDefaultTriforce() {
+  const image = document.createElement('canvas');
+  image.width = 128;
+  image.height = 128;
+  const imageContext = image.getContext('2d');
+  imageContext.fillStyle = '#ffffff';
+  imageContext.fillRect(0, 0, 128, 128);
+  imageContext.fillStyle = '#000000';
+
+  const triangle = (topX, topY, leftX, rightX, bottomY) => {
+    imageContext.beginPath();
+    imageContext.moveTo(topX, topY);
+    imageContext.lineTo(leftX, bottomY);
+    imageContext.lineTo(rightX, bottomY);
+    imageContext.closePath();
+    imageContext.fill();
+  };
+
+  triangle(64, 13, 37, 91, 60);
+  triangle(36, 64, 9, 63, 111);
+  triangle(92, 64, 65, 119, 111);
+  return image;
+}
 
 function renderImage() {
   if (!state.image) return;
@@ -773,10 +844,15 @@ function renderImage() {
   }
   ctx.putImageData(data, 0, 0);
   $('#image-status').textContent = 'READY TO SEND';
+  setImageTransferStatus('Ready to send.');
   $('#image-info').textContent = `${state.imageName} · 128 × 128 · 1-bit`;
   $('#image-size').textContent = '2,048 B payload';
   activeImageReady();
 }
+
+state.image = createDefaultTriforce();
+state.imageName = 'Triforce starter';
+renderImage();
 
 $('#image-file').addEventListener('change', (event) => {
   const [file] = event.target.files;
@@ -852,6 +928,7 @@ function makeChunk(index, data) {
 }
 
 async function sendChunks(prefix, bytes, chunkCount, capacityChunks, retries = 0, timing = {}) {
+  const { onProgress, ...exchangeTiming } = timing;
   for (let index = 0; index < chunkCount; index += 1) {
     const data = bytes.subarray(index * 64, index * 64 + 64);
     const payload = new Uint8Array(64);
@@ -860,26 +937,60 @@ async function sendChunks(prefix, bytes, chunkCount, capacityChunks, retries = 0
     const { response } = await exchange(`${prefix} ${base64(makeChunk(index, payload))}`, {
       accepted: isCapacityEnd ? ['OK', 'SUCCESS'] : ['OK'],
       retries,
-      ...timing,
+      ...exchangeTiming,
     });
+    onProgress?.(index + 1, capacityChunks, response);
     log(`${prefix} chunk ${index + 1}/${capacityChunks}${response === 'SUCCESS' ? ' · complete' : ''}`, 'ok');
   }
 }
 
 $('#send-image').addEventListener('click', async () => {
   if (!state.image || $('#send-image').disabled) return;
+  const approved = window.confirm(
+    'Send this image to the badge?\n\nKeep the badge still and on the same screen for about 35 seconds. Moving or tilting it can change the badge screen and break the transfer. Do not press badge buttons, unplug it, or let the phone or computer sleep.',
+  );
+  if (!approved) return log('Image upload cancelled.', 'info');
+  const button = $('#send-image');
   const payload = imagePayload();
   setImageEditorDisabled(true);
+  button.textContent = 'Waiting for badge…';
+  $('#image-status').textContent = 'WAITING FOR BADGE';
+  setImageTransferStatus('Waiting for badge connection…', 'active');
   try {
-    if (!(await ensureConnected())) return;
+    if (!(await ensureConnected())) {
+      $('#image-status').textContent = 'NOT SENT';
+      setImageTransferStatus('Not sent. Connect the badge and try again.', 'error');
+      return;
+    }
+    button.textContent = 'Preparing badge…';
+    $('#image-status').textContent = 'PREPARING BADGE';
+    setImageTransferStatus('Preparing the badge for upload…', 'active');
     await runSerialOperation(async () => {
-      log('Starting image upload (32 chunks).', 'info');
-      await sendChunks('image', payload, 32, 32, 0);
+      log('Starting fast image upload (32 checked chunks).', 'info');
+      button.textContent = 'Uploading 0/32';
+      $('#image-status').textContent = 'UPLOADING 0/32';
+      setImageTransferStatus('Uploading image · 0 of 32 chunks', 'active');
+      await sendChunks('image', payload, 32, 32, 0, {
+        writeMode: 'burst',
+        settleMs: IMAGE_CHUNK_SETTLE_MS,
+        responseMode: 'whole-line',
+        maxTotalMs: 4_000,
+        onProgress: (completed, total) => {
+          button.textContent = `Uploading ${completed}/${total}`;
+          $('#image-status').textContent = `UPLOADING ${completed}/${total}`;
+          setImageTransferStatus(`Uploading image · ${completed} of ${total} chunks`, 'active');
+        },
+      });
+      $('#image-status').textContent = 'IMAGE SENT';
+      setImageTransferStatus('Image sent to the badge.', 'success');
       log('Image transfer complete.', 'ok');
     });
   } catch (error) {
+    $('#image-status').textContent = 'UPLOAD FAILED';
+    setImageTransferStatus(`Upload stopped: ${error.message}`, 'error');
     log(`Image upload failed: ${error.message}`, 'error');
   } finally {
+    button.textContent = 'Send image';
     setImageEditorDisabled(false);
   }
 });
@@ -1571,21 +1682,6 @@ function populateDirectPatternControls() {
     patternSelect.append(group);
   });
 
-  const implementedWledIds = new Set(
-    DIRECT_LED_PATTERNS.map((pattern) => pattern.wledId).filter(Number.isInteger),
-  );
-  [
-    ['WLED 1D · future controller', 'one-d'],
-    ['WLED audio · requires audio input', 'audio'],
-    ['WLED matrix · requires 2D hardware', 'matrix'],
-  ].forEach(([label, catalogGroup]) => {
-    const group = document.createElement('optgroup');
-    group.label = label;
-    WLED_EFFECTS
-      .filter((effect) => effect.group === catalogGroup && !implementedWledIds.has(effect.id))
-      .forEach((effect) => addDirectPatternOption(group, `wled-${effect.id}`, `${effect.id} · ${effect.name}`, true));
-    patternSelect.append(group);
-  });
   patternSelect.value = state.directPatternSettings.id;
 
   const paletteSelect = $('#direct-palette');
@@ -2032,14 +2128,25 @@ $('#apply-direct-leds').addEventListener('click', async () => {
     );
     if (!approved) return log('Rapid flashing scene was not applied.', 'info');
   }
-  if (!(await ensureConnected())) return;
+  const applyButton = $('#apply-direct-leds');
   let binary = null;
+  setDirectActionsDisabled(true);
+  setLightBridgeStatus('WAITING FOR BADGE…', 'active');
+  applyButton.textContent = 'Waiting for badge…';
   try {
-    if (state.bridgeMode !== 'direct') binary = await loadDirectLedBinary();
-    setDirectActionsDisabled(true);
+    if (!(await ensureConnected())) {
+      setLightBridgeStatus('NOT SENT · CONNECT BADGE', 'error');
+      return;
+    }
+    if (state.bridgeMode !== 'direct') {
+      setLightBridgeStatus('PREPARING CONTROLLER…', 'active');
+      applyButton.textContent = 'Preparing controller…';
+      binary = await loadDirectLedBinary();
+    }
     await runSerialOperation(async () => {
       if (state.bridgeMode !== 'direct') {
-        setLightBridgeStatus('INSTALLING PIXEL ENGINE');
+        setLightBridgeStatus('INSTALLING CONTROLLER…', 'active');
+        applyButton.textContent = 'Installing controller…';
         await exchange('bio ready', { accepted: ['OK'], retries: 0 });
         await exchange('bio clear', { accepted: ['CLEAR'], retries: 0 });
         await uploadBioBytes(binary, {
@@ -2056,9 +2163,10 @@ $('#apply-direct-leds').addEventListener('click', async () => {
         $('#direct-autostart').checked = false;
         state.directLedDirty = new Set(Array.from({ length: DIRECT_LED_COUNT }, (_, index) => index));
       }
-      setLightBridgeStatus('APPLYING LED SCENE', 'active');
+      setLightBridgeStatus('SENDING LIGHT SCENE…', 'active');
+      applyButton.textContent = 'Sending lights…';
       await sendDirectScene(state.directLedDirty);
-      setLightBridgeStatus(directRuntimeStatus(), 'active');
+      setLightBridgeStatus('LIGHTS UPDATED', 'active');
       log('Applied per-LED color, brightness, flash/RGB effect, period, and start delay with sleep-safe timing; k0 was not accessed.', 'ok');
     });
   } catch (error) {
@@ -2075,8 +2183,8 @@ $('#save-direct-startup').addEventListener('click', async () => {
     ? '\n\nThis scene contains 3–30 Hz flashes that can trigger photosensitive reactions and will start again after reboot.'
     : '';
   const approved = window.confirm((enabled
-    ? 'Save the current LED scene for startup?\n\nThis clears and rewrites the persistent BIO image, replaces any other BIO program, and takes about four minutes at badge-tested serial speed. The scene will start shortly after the badge reboots. If the upload is interrupted, the saved stock light pattern remains available while you retry.'
-    : 'Disable LED auto-start?\n\nThis clears and rewrites the persistent BIO image, replaces any other BIO program, and takes about four minutes. The badge then returns to its saved stock light gene until Apply is used again.') + rapidWarning);
+    ? 'Save this scene for startup?\n\nThis replaces the BIO program and takes about six minutes. Keep the badge connected.'
+    : 'Turn off LED auto-start?\n\nThis replaces the BIO program and takes about six minutes. Keep the badge connected.') + rapidWarning);
   if (!approved) return log('Startup-scene update cancelled.', 'info');
   if (!(await ensureConnected())) return;
 
@@ -2511,7 +2619,6 @@ $('#adopt-light-bridge').addEventListener('click', () => {
 });
 
 $('#apply-gene').addEventListener('click', async () => {
-  if (!(await ensureConnected())) return;
   if (state.bridgeMode !== 'gene') {
     const approved = window.confirm(
       'Install the sealed-mode LED bridge?\n\n' +
@@ -2522,15 +2629,23 @@ $('#apply-gene').addEventListener('click', async () => {
 
   const gene = state.gene.slice();
   const eyeOn = $('#gene-face-down').checked;
+  const applyButton = $('#apply-gene');
   setGeneEditorDisabled(true);
+  setLightBridgeStatus('WAITING FOR BADGE…', 'active');
+  applyButton.textContent = 'Waiting for badge…';
   try {
+    if (!(await ensureConnected())) {
+      setLightBridgeStatus('NOT SENT · CONNECT BADGE', 'error');
+      return;
+    }
     await runSerialOperation(async () => {
       if (state.bridgeMode !== 'gene') {
         if (state.bridgeMode === 'direct') {
           await sendBridgeWord(DIRECT_LED_RELEASE_MAGIC);
           await sleep(120);
         }
-        setLightBridgeStatus('INSTALLING');
+        setLightBridgeStatus('INSTALLING BRIDGE…', 'active');
+        applyButton.textContent = 'Installing bridge…';
         // Clear the loader's partial-chunk staging buffer before installing a
         // known program. The confirmation above already covers replacement.
         await exchange('bio ready', { accepted: ['OK'], retries: 0 });
@@ -2551,9 +2666,10 @@ $('#apply-gene').addEventListener('click', async () => {
         setLightBridgeStatus('GENE BRIDGE ACTIVE', 'active');
         await sleep(150);
       }
-      setLightBridgeStatus('APPLYING', 'active');
+      setLightBridgeStatus('SENDING LIGHT PATTERN…', 'active');
+      applyButton.textContent = 'Sending lights…';
       await sendLightPhenotype({ gene, eyeOn });
-      setLightBridgeStatus('GENE BRIDGE ACTIVE', 'active');
+      setLightBridgeStatus('LIGHT PATTERN UPDATED', 'active');
       log(`Applied built-in LED phenotype ${geneHex(gene)}; k0 was not accessed.`, 'ok');
     });
   } catch (error) {

@@ -21,4 +21,6 @@ BIO uploads are reversible, but bridge/controller installation replaces any othe
 
 Direct LED control is an experimental shared-pin takeover. It does not access the saved light-exchange key (`k0`) or flash Xous. Keep the 25% brightness guard enabled unless the power consequences are understood. Ten full-white WS2812C pixels can approach 600 mA, and rapid flashing can trigger photosensitive reactions.
 
-Startup save clears and rewrites persistent BIO at the badge-tested serial speed. Budget about four minutes and keep both devices powered and awake.
+Image upload uses the official full-line transfer method with a 200 ms pause after each acknowledged chunk. A physical DC34 badge completed 32/32 Triforce chunks without a retry in about 35 seconds, including synchronization. Keep the badge still and on the same screen; motion or button presses can change the display and interrupt the console.
+
+Startup save clears and rewrites persistent BIO at the physically verified 60 ms serial pace. That pace completed a 48/48 controller upload plus commit/reload and 13/13 LED pattern commands with no retries or input overflow. Budget about six minutes and keep both devices powered and awake.
