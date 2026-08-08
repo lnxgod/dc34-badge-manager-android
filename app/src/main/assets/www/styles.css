@@ -97,6 +97,13 @@ html.android-app .shell { padding-top: max(24px, env(safe-area-inset-top)); padd
 .control-row input { width: 100%; margin-top: 10px; accent-color: var(--acid); }
 .check { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; margin-top: 14px; }
 .check input, .sao-option input { accent-color: var(--acid); }
+.installed-controller-option { align-items: flex-start; margin: 14px 3px 0; padding: 12px; border: 1px solid #48543f; background: rgba(200,243,107,.045); cursor: pointer; }
+.installed-controller-option input { width: 17px; height: 17px; margin: 1px 0 0; flex: 0 0 auto; }
+.installed-controller-option > span { display: grid; gap: 4px; }
+.installed-controller-option strong { color: var(--ink); font-size: 12px; }
+.installed-controller-option small { color: var(--muted); font: 10px/1.45 var(--mono); }
+.installed-controller-option:has(input:checked) { border-color: var(--acid-deep); background: rgba(200,243,107,.1); }
+.installed-controller-option:has(input:checked) strong { color: var(--acid); }
 .button-row { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 22px; }
 .note { color: #899286; font: 11px/1.55 var(--mono); margin: 19px 0 0; }
 .note code { color: #bdc6b9; }

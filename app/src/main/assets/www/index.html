@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#101411" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'" />
     <title>DC34 / badge control</title>
-    <link rel="stylesheet" href="styles.css?v=12" />
+    <link rel="stylesheet" href="styles.css?v=13" />
   </head>
   <body>
     <main class="shell">
@@ -249,7 +249,7 @@
 
           <article class="card direct-led-controls-card">
             <div class="direct-led-head">
-              <div><span>LED CONTROLLER</span><small>Runs patterns on the badge</small></div>
+              <div><span>COLORKERNEL CONTROLLER</span><small>Runs direct colors and patterns</small></div>
               <output id="direct-led-status" aria-live="polite">NOT INSTALLED</output>
             </div>
             <div class="direct-pattern-panel" aria-labelledby="direct-pattern-heading">
@@ -297,13 +297,16 @@
               <label class="check"><input id="direct-autostart" type="checkbox" /> <span>Auto-start this scene after reboot</span></label>
               <button id="save-direct-startup" class="button ghost small" type="button">Save startup setting</button>
             </div>
-            <p class="note direct-startup-note">Startup save takes about six minutes. Keep the badge connected. After reboot, wait two seconds. To edit later, choose <strong>Current controller already installed</strong>.</p>
+            <p class="note direct-startup-note">Startup save takes about six minutes. Keep the badge connected. After reboot, wait two seconds. To edit later, check <strong>ColorKernel installed</strong>.</p>
+            <label class="check installed-controller-option">
+              <input id="adopt-direct-leds" type="checkbox" />
+              <span><strong>ColorKernel installed</strong><small>Check this after reconnecting to update colors without reinstalling.</small></span>
+            </label>
             <div class="button-row direct-led-actions">
-              <button id="apply-direct-leds" class="button" type="button">Install controller &amp; apply</button>
-              <button id="adopt-direct-leds" class="button ghost" type="button">Current controller already installed</button>
+              <button id="apply-direct-leds" class="button" type="button">Install ColorKernel &amp; apply</button>
               <button id="release-direct-leds" class="button ghost" type="button">Release to saved gene</button>
             </div>
-            <p class="note warning">Installing replaces the current BIO program. Bright scenes use more power. Rapid flashing can trigger photosensitive reactions.</p>
+            <p class="note warning">Installing replaces the current BIO program. ColorKernel and BadgeMu use the same BIO slot. Bright scenes use more power. Rapid flashing can trigger photosensitive reactions.</p>
           </article>
         </div>
 
@@ -359,16 +362,19 @@
             </div>
             <div class="light-bridge">
               <div class="light-bridge-head">
-                <span>LIGHT PATTERN BRIDGE</span>
+                <span>BADGEMU LIGHT BRIDGE</span>
                 <output id="light-bridge-status" aria-live="polite">NOT INSTALLED</output>
               </div>
               <p>Control the badge’s built-in light pattern from these sliders.</p>
+              <label class="check installed-controller-option">
+                <input id="adopt-light-bridge" type="checkbox" />
+                <span><strong>BadgeMu installed</strong><small>Check this after reconnecting to update the saved light pattern without reinstalling.</small></span>
+              </label>
               <div class="button-row light-bridge-actions">
-                <button id="apply-gene" class="button" type="button">Install bridge &amp; apply</button>
-                <button id="adopt-light-bridge" class="button ghost" type="button">Bridge already installed</button>
+                <button id="apply-gene" class="button" type="button">Install BadgeMu &amp; apply</button>
                 <button id="restore-gene" class="button ghost" type="button">Restore saved badge gene</button>
               </div>
-              <p class="note warning">First use replaces the current BIO program. After reconnecting, choose <code>Bridge already installed</code>. Restore returns to the saved badge pattern.</p>
+              <p class="note warning">Installing replaces the current BIO program. Check <strong>BadgeMu installed</strong> after reconnecting. Restore returns to the saved badge pattern.</p>
             </div>
           </article>
         </div>
@@ -402,9 +408,9 @@
 
     <noscript>This workbench needs JavaScript for image conversion, serial access, and QR generation.</noscript>
     <script src="android-serial.js?v=3"></script>
-    <script src="serial-protocol.js?v=4"></script>
+    <script src="serial-protocol.js?v=5"></script>
     <script src="vendor/qrcodegen.js?v=1"></script>
     <script src="direct-led-patterns.js?v=1"></script>
-    <script src="app.js?v=36"></script>
+    <script src="app.js?v=37"></script>
   </body>
 </html>

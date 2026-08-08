@@ -6,6 +6,7 @@ const {
   SERIAL_CHAR_DELAY_MS,
   classifyWholeLineResponse,
   createCommandEchoGate,
+  summarizeSerialLine,
   writeBytesBurst,
   writeBytesPaced,
 } = require('../../main/assets/www/serial-protocol.js');
@@ -106,4 +107,12 @@ test('the official image parser accepts only exact whole-line replies', () => {
   assert.equal(classifyWholeLineResponse('ERR :display timeout', accepted), 'chatter');
   assert.equal(classifyWholeLineResponse('[console] image AAAA', accepted), 'chatter');
   assert.equal(classifyWholeLineResponse('Input overflow to 17, dropping keys!', accepted), 'chatter');
+});
+
+test('image and BIO chunk payloads are hidden from the visible serial console', () => {
+  const payload = '/'.repeat(92) + '==';
+  assert.equal(summarizeSerialLine(`[console] image ${payload}`), '[console] image <chunk payload hidden>');
+  assert.equal(summarizeSerialLine(`bio ${payload}`), 'bio <chunk payload hidden>');
+  assert.equal(summarizeSerialLine('[console] image clear'), '[console] image clear');
+  assert.equal(summarizeSerialLine('OK'), 'OK');
 });

@@ -52,6 +52,13 @@
     return 'chatter';
   }
 
+  function summarizeSerialLine(line) {
+    if (typeof line !== 'string') throw new TypeError('Serial line summaries require a string.');
+    const payload = line.match(/^(\[console\]\s+)?(image|bio)\s+[A-Za-z0-9+/]{80,}={0,2}\s*$/i);
+    if (!payload) return line;
+    return `${payload[1] || ''}${payload[2].toLowerCase()} <chunk payload hidden>`;
+  }
+
   function createCommandEchoGate(line) {
     const expectedEcho = `${CONSOLE_PREFIX} ${line}`;
     let sawExpectedEcho = false;
@@ -84,6 +91,7 @@
     SERIAL_CHAR_DELAY_MS,
     classifyWholeLineResponse,
     createCommandEchoGate,
+    summarizeSerialLine,
     writeBytesBurst,
     writeBytesPaced,
   };

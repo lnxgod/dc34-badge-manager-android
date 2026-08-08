@@ -68,7 +68,7 @@ test('web workbench keeps every shared Android control id', async () => {
   const builtIds = new Set([...builtHtml.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]));
 
   for (const id of sourceIds) assert.ok(builtIds.has(id), `Missing shared workbench id: ${id}`);
-  assert.match(builtHtml, /styles\.css\?v=12/);
+  assert.match(builtHtml, /styles\.css\?v=13/);
   assert.match(builtHtml, /web-theme\.css\?v=2/);
   assert.match(builtHtml, /web\.js\?v=1/);
   assert.match(builtHtml, /Desktop Chrome or Edge for USB/);
@@ -82,8 +82,13 @@ test('web workbench keeps every shared Android control id', async () => {
   assert.match(builtHtml, /Light pattern simulator/);
   assert.doesNotMatch(builtHtml, /src="wled-catalog\.js/);
   assert.match(builtHtml, /src="direct-led-patterns\.js\?v=1"/);
-  assert.match(builtHtml, /src="serial-protocol\.js\?v=4"/);
-  assert.match(builtHtml, /src="app\.js\?v=36"/);
+  assert.match(builtHtml, /src="serial-protocol\.js\?v=5"/);
+  assert.match(builtHtml, /src="app\.js\?v=37"/);
+  assert.match(builtHtml, /id="adopt-direct-leds" type="checkbox"/);
+  assert.match(builtHtml, /id="adopt-light-bridge" type="checkbox"/);
+  assert.match(builtHtml, /ColorKernel installed/);
+  assert.match(builtHtml, /BadgeMu installed/);
+  assert.doesNotMatch(builtHtml, /Current controller already installed|Bridge already installed/);
   assert.doesNotMatch(builtHtml, /Why Couldn't I See My Own Drone/);
 });
 
@@ -110,6 +115,9 @@ test('workbench opens with a ready-to-send Triforce starter image', async () => 
   assert.match(appJavaScript, /setLightBridgeStatus\('WAITING FOR BADGE…', 'active'\)/);
   assert.match(appJavaScript, /setLightBridgeStatus\('SENDING LIGHT SCENE…', 'active'\)/);
   assert.match(appJavaScript, /setLightBridgeStatus\('SENDING LIGHT PATTERN…', 'active'\)/);
+  assert.match(appJavaScript, /summarizeSerialLine\(line\)/);
+  assert.match(appJavaScript, /Image stopped after \$\{completedChunks\}\/32 chunks/);
+  assert.doesNotMatch(appJavaScript, /Upload stopped: \$\{error\.message\}/);
 });
 
 test('motion stays smooth, stable, and respectful of user preferences', async () => {
