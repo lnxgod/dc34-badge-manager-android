@@ -52,7 +52,7 @@ test('landing page credits the Chief Codex Pilot and uses the selected base path
   assert.match(html, /id="job-panel"[^>]+role="tabpanel"[^>]+aria-labelledby="job-tab-image"/);
   assert.ok(html.includes(`src="${sitePath(siteBasePath, 'site.js')}?v=1"`));
   assert.ok(html.includes(`href="${sitePath(siteBasePath, 'styles.css')}?v=2"`));
-  assert.equal(occurrences(html, 'releases/tag/v0.1.1-beta.4'), 2);
+  assert.equal(occurrences(html, 'releases/tag/v0.1.1-beta.5'), 2);
   assert.match(html, /rel="canonical" href="https:\/\/gamechangersai\.org\/dc34badge"/);
   assert.doesNotMatch(html, /__DC34_SITE_BASE_PATH__/);
 
